@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trailhead Cebu — Trail &amp; Hike Finder</title>
+<meta name="description" content="One list for every Cebu trail race and hike. Built for runners and hikers tired of digging through Facebook groups.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canopy:#16241C;
+    --canopy-2:#1F3327;
+    --mist:#F2EEE2;
+    --paper:#FBF9F2;
+    --moss:#5C6E54;
+    --moss-line:#D8D2BE;
+    --char:#262420;
+    --char-soft:#5b5750;
+    --flag-orange:#F2611B;
+    --flag-orange-dim:#FBE2D2;
+    --dawn-blue:#235E78;
+    --dawn-blue-dim:#D9E7EC;
+    --display: 'Oswald', sans-serif;
+    --body: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    /* Mobile-first single column. Desktop gets the same column,
+       framed and centered — not a redesign into multi-column. */
+    --app-max-width: 480px;
+  }
+  *{box-sizing:border-box;}
+  html, body{ height:100%; }
+  body{
+    margin:0;
+    font-family:var(--body);
+    background:
+      repeating-radial-gradient(circle at 85% 12%, transparent 0 40px, rgba(92,110,84,0.07) 41px 43px),
+      repeating-radial-gradient(circle at 8% 90%, transparent 0 55px, rgba(92,110,84,0.06) 56px 58px),
+      var(--canopy);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+
+  /* ---------- app shell ----------
+     Mobile (default, <640px): full-bleed, full-height, no card
+     framing — feels like a native app screen.
+     Desktop (≥640px): becomes a centered, framed column so the
+     same single-column UI doesn't stretch edge-to-edge on a wide
+     monitor. */
+  .app{
+    width:100%;
+    max-width:var(--app-max-width);
+    min-height:100vh;
+    background:var(--paper);
+    position:relative;
+    overflow:hidden;
+  }
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .screen::-webkit-scrollbar{width:0;}
+
+  @media (min-width:640px){
+    body{ padding:40px 20px; align-items:flex-start; }
+    .app{
+      min-height:calc(100vh - 80px);
+      max-height:880px;
+      border-radius:28px;
+      box-shadow:0 30px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+    }
+  }
+
+  /* ---------- shared app bar ---------- */
+  .appbar{
+    background:var(--canopy);
+    color:var(--mist);
+    padding:18px 18px 14px;
+    flex-shrink:0;
+    position:sticky; top:0; z-index:5;
+  }
+  .wordmark{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:19px;
+    letter-spacing:.02em;
+    margin:0;
+    display:flex; align-items:center; gap:8px;
+  }
+  .wordmark .pin{color:var(--flag-orange);}
+  .tagline{
+    font-family:var(--mono);
+    font-size:11px;
+    color:#A9B7A1;
+    margin:3px 0 0;
+    letter-spacing:.02em;
+  }
+  .mode-tabs{
+    display:flex; gap:8px; margin-top:14px;
+  }
+  .mode-tab{
+    flex:1;
+    text-align:center;
+    font-family:var(--body);
+    font-weight:600;
+    font-size:13px;
+    padding:9px 6px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.04);
+    color:#D8DFD2;
+    cursor:pointer;
+  }
+  .mode-tab.is-hikes.active{ background:var(--flag-orange); border-color:var(--flag-orange); color:#fff; }
+  .mode-tab.is-races.active{ background:var(--dawn-blue); border-color:var(--dawn-blue); color:#fff; }
+
+  /* ---------- filter chip row ---------- */
+  .chiprow{
+    display:flex; gap:7px; padding:12px 14px 4px;
+    overflow-x:auto; flex-shrink:0; background:var(--paper);
+    position:sticky; top:0;
+  }
+  .chip{
+    font-family:var(--mono);
+    font-size:11.5px;
+    white-space:nowrap;
+    padding:6px 12px;
+    border-radius:999px;
+    border:1px solid var(--moss-line);
+    color:var(--char-soft);
+    background:#fff;
+  }
+  .chip.active.hikes{ background:var(--flag-orange-dim); border-color:var(--flag-orange); color:#9A3A0B; }
+  .chip.active.races{ background:var(--dawn-blue-dim); border-color:var(--dawn-blue); color:#1B4456; }
+
+  .feed{ padding:6px 14px 30px; }
+
+  .datedivider{
+    display:flex; align-items:center; gap:8px;
+    margin:18px 0 8px;
+    color:var(--moss);
+  }
+  .datedivider span{
+    font-family:var(--mono);
+    font-size:11.5px;
+    font-weight:500;
+    letter-spacing:.05em;
+    white-space:nowrap;
+  }
+  .datedivider .line{ flex:1; height:1px; background:var(--moss-line); }
+
+  /* ---------- cards ---------- */
+  .card{
+    background:#fff;
+    border:1px solid var(--moss-line);
+    border-radius:14px;
+    padding:13px 13px 12px;
+    margin-bottom:10px;
+    cursor:pointer;
+    position:relative;
+  }
+  .card:active{ transform:scale(.99); }
+  .card-top{ display:flex; justify-content:space-between; gap:10px; }
+  .card-title{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:15.5px;
+    color:var(--char);
+    margin:0 0 3px;
+    line-height:1.2;
+  }
+  .card-sub{
+    font-family:var(--body);
+    font-size:12px;
+    color:var(--char-soft);
+    margin:0;
+  }
+  .spark{ flex-shrink:0; }
+  .tagrow{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+  .tag{
+    font-family:var(--mono);
+    font-size:10.5px;
+    padding:3px 8px;
+    border-radius:6px;
+    background:var(--mist);
+    color:var(--char-soft);
+  }
+  .tag.urgent{ background:var(--flag-orange); color:#fff; }
+  .tag.far{ background:var(--dawn-blue); color:#fff; }
+  .tag.outside{ background:#3a3530; color:#F2EEE2; }
+
+  /* ---------- dense-day cluster card ---------- */
+  .cluster{
+    background:var(--flag-orange-dim);
+    border:1px dashed var(--flag-orange);
+  }
+  .cluster .card-title{ color:#9A3A0B; }
+  .stack{ display:flex; margin:10px 0 8px; }
+  .stack .av{
+    width:26px; height:26px; border-radius:50%;
+    background:#fff; border:2px solid var(--flag-orange-dim);
+    color:#9A3A0B; font-family:var(--mono); font-size:10px; font-weight:600;
+    display:flex; align-items:center; justify-content:center;
+    margin-left:-8px;
+  }
+  .stack .av:first-child{ margin-left:0; }
+  .stack .more{ background:var(--flag-orange); color:#fff; border-color:var(--flag-orange); }
+  .cluster-list{ display:none; flex-direction:column; gap:7px; margin-top:8px; border-top:1px dashed var(--flag-orange); padding-top:8px; }
+  .cluster.open .cluster-list{ display:flex; }
+  .cluster.open .chevron{ transform:rotate(180deg); }
+  .mini-org{ display:flex; justify-content:space-between; font-size:12.5px; color:#5b3a26; }
+  .mini-org b{ font-weight:600; }
+  .expand-row{ display:flex; align-items:center; justify-content:space-between; font-family:var(--mono); font-size:11.5px; color:#9A3A0B; margin-top:2px;}
+  .chevron{ transition: transform .2s; }
+
+  /* ---------- highlight strip (race feed) ---------- */
+  .justannounced{
+    background:var(--dawn-blue);
+    color:#fff; border-radius:14px; padding:13px 14px; margin-bottom:14px;
+  }
+  .justannounced .label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; opacity:.85; }
+  .justannounced .card-title{ color:#fff; margin-top:3px;}
+
+  /* ---------- landing screen ---------- */
+  .landing-hero{
+    background:var(--canopy);
+    padding:30px 22px 26px;
+    color:var(--mist);
+  }
+  .landing-hero h1{
+    font-family:var(--display);
+    font-size:25px;
+    font-weight:600;
+    line-height:1.15;
+    margin:14px 0 6px;
+  }
+  .landing-hero p{
+    font-family:var(--body);
+    font-size:13px;
+    color:#B7C2AF;
+    margin:0;
+    line-height:1.5;
+  }
+  .panels{ padding:18px 16px; display:flex; flex-direction:column; gap:12px; flex:1; }
+  .panel{
+    border-radius:16px;
+    padding:18px;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+  }
+  .panel.hikes{ background:var(--flag-orange); color:#fff; }
+  .panel.races{ background:var(--dawn-blue); color:#fff; }
+  .panel .ptitle{ font-family:var(--display); font-size:20px; font-weight:600; margin:0 0 4px; }
+  .panel .psub{ font-family:var(--body); font-size:12.5px; opacity:.92; margin:0 0 10px; max-width:80%; }
+  .panel .pmeta{ font-family:var(--mono); font-size:11px; opacity:.85; }
+  .panel .arrow{ position:absolute; right:16px; bottom:16px; font-size:26px; opacity:.5; }
+  .ticker{
+    font-family:var(--mono); font-size:11.5px; color:var(--char-soft);
+    text-align:center; padding:0 20px 16px;
+  }
+  .landing-footer{
+    margin-top:auto; padding:14px 18px 18px;
+    font-family:var(--mono); font-size:10.5px; color:#9aa091;
+    border-top:1px solid var(--moss-line); display:flex; justify-content:space-between;
+  }
+  .landing-footer a{ color:var(--moss); text-decoration:underline; }
+
+  /* ---------- detail screen ---------- */
+  .detail-hero{ background:var(--canopy); padding:16px 16px 0; color:var(--mist); }
+  .backbtn{
+    font-family:var(--mono); font-size:12px; color:#B7C2AF;
+    background:none; border:none; padding:0 0 12px; cursor:pointer;
+  }
+  .segctl{
+    display:flex; background:rgba(255,255,255,0.08); border-radius:10px; padding:3px; margin-bottom:14px;
+  }
+  .segbtn{
+    flex:1; text-align:center; font-family:var(--body); font-size:12.5px; font-weight:600;
+    padding:7px; border-radius:8px; color:#C9D2C2; background:none; border:none; cursor:pointer;
+  }
+  .segbtn.active.hike{ background:var(--flag-orange); color:#fff; }
+  .segbtn.active.race{ background:var(--dawn-blue); color:#fff; }
+  .detail-title{ font-family:var(--display); font-size:21px; font-weight:600; margin:0 0 4px; padding-bottom:14px;}
+  .detail-sub{ font-family:var(--mono); font-size:11.5px; color:#A9B7A1; }
+
+  .detail-body{ padding:16px; }
+  .bigspark{ width:100%; height:60px; margin-bottom:14px; }
+  .statgrid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+  .stat{ background:var(--mist); border-radius:10px; padding:9px 6px; text-align:center; }
+  .stat .v{ font-family:var(--mono); font-size:14px; font-weight:600; color:var(--char); }
+  .stat .l{ font-family:var(--body); font-size:9.5px; color:var(--char-soft); text-transform:uppercase; letter-spacing:.04em; }
+
+  .section{ margin-bottom:18px; }
+  .section h3{
+    font-family:var(--display); font-size:13px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--moss); margin:0 0 8px; font-weight:600;
+  }
+  .infoline{ display:flex; justify-content:space-between; font-size:13px; padding:7px 0; border-bottom:1px solid var(--moss-line); }
+  .infoline .k{ color:var(--char-soft); }
+  .infoline .v{ font-weight:500; color:var(--char); text-align:right; }
+  .distrow{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--moss-line); }
+  .distrow .dname{ font-weight:600; font-size:13.5px; }
+  .distrow .dmeta{ font-family:var(--mono); font-size:11px; color:var(--char-soft); }
+  .note{
+    font-size:12px; color:var(--char-soft); background:var(--mist); border-radius:10px; padding:10px 12px; line-height:1.5;
+  }
+  .ctarow{ display:flex; gap:10px; margin-top:6px; }
+  .cta{
+    flex:1; text-align:center; padding:13px; border-radius:10px; font-family:var(--body); font-weight:600; font-size:13.5px;
+    border:none; cursor:pointer;
+  }
+  .cta.primary.hike{ background:var(--flag-orange); color:#fff; }
+  .cta.primary.race{ background:var(--dawn-blue); color:#fff; }
+  .cta.secondary{ background:var(--mist); color:var(--char); }
+
+  .hide{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== LANDING ===================== -->
+  <div class="screen" id="screen-landing">
+    <div class="landing-hero">
+      <p class="tagline">CEBU TRAIL &amp; HIKE FINDER</p>
+      <h1>One list.<br>Every climb, every race.</h1>
+      <p>No more digging through five group chats and a dozen FB pages.</p>
+    </div>
+    <div class="panels">
+      <div class="panel hikes" onclick="showScreen('hikes')">
+        <p class="ptitle">Hikes &amp; Treks</p>
+        <p class="psub">Local Cebu day-hikes and out-of-town trips, sorted by how soon you can join.</p>
+        <p class="pmeta">14 open this week</p>
+        <div class="arrow">→</div>
+      </div>
+      <div class="panel races" onclick="showScreen('races')">
+        <p class="ptitle">Trail Races</p>
+        <p class="psub">Every race we know about, the moment it's announced — built for planning ahead.</p>
+        <p class="pmeta">6 open for registration</p>
+        <div class="arrow">→</div>
+      </div>
+    </div>
+    <div class="ticker">Updated manually by your friendly group admin · last updated 2h ago</div>
+    <div class="landing-footer">
+      <span>How this works</span>
+      <a href="#">Submit an event →</a>
+    </div>
+  </div>
+
+  <!-- ===================== HIKES FEED ===================== -->
+  <div class="screen hide" id="screen-hikes">
+    <div class="appbar">
+      <p class="wordmark"><span class="pin">⛰</span>Trailhead Cebu</p>
+      <div class="mode-tabs">
+        <div class="mode-tab is-hikes active" onclick="showScreen('hikes')">Hikes</div>
+        <div class="mode-tab is-races" onclick="showScreen('races')">Races</div>
+      </div>
+    </div>
+    <div class="chiprow">
+      <div class="chip active hikes">This week</div>
+      <div class="chip">Next 2 weeks</div>
+      <div class="chip">Cebu only</div>
+      <div class="chip">Outside Cebu</div>
+      <div class="chip">Beginner</div>
+    </div>
+    <div class="feed">
+
+      <div class="datedivider"><span>SAT, JUL 4</span><div class="line"></div></div>
+
+      <div class="card cluster" id="clusterCard" onclick="toggleCluster(event)">
+        <div class="card-top">
+          <div>
+            <p class="card-title">10 sunrise hikes today</p>
+            <p class="card-sub">Osmeña Peak area · 10 different organizers</p>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="av">JM</div><div class="av">RC</div><div class="av">KP</div>
+          <div class="av">+ A</div><div class="av">DG</div><div class="av more">+5</div>
+        </div>
+        <div class="expand-row">
+          <span>Tap to see all 10 meetup details</span>
+          <span class="chevron">⌄</span>
+        </div>
+        <div class="cluster-list">
+          <div class="mini-org"><b>JM Outdoors</b><span>4:00 AM meetup · ₱350</span></div>
+          <div class="mini-org"><b>RC Trail Co.</b><span>3:30 AM meetup · ₱400</span></div>
+          <div class="mini-org"><b>Kandungaw Pilgrims</b><span>4:30 AM meetup · ₱300</span></div>
+          <div class="mini-org"><b>Active Lapu hikers</b><span>3:00 AM meetup · ₱380</span></div>
+          <div class="mini-org"><b>Dalaguete Guides Assoc.</b><span>4:00 AM meetup · ₱250</span></div>
+          <div class="mini-org"><b>+ 5 more organizers</b><span>view all →</span></div>
+        </div>
+      </div>
+
+      <div class="card" onclick="openDetail('hike')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Mt. Manunggal Trail</p>
+            <p class="card-sub">Balamban · by Sugbu Trekkers PH</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,26 34,14 50,18 66,6 84,12 100,8 120,16" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow">
+          <span class="tag">6.4 km</span><span class="tag">320m gain</span>
+          <span class="tag urgent">3 days left to join</span>
+        </div>
+      </div>
+
+      <div class="datedivider"><span>SUN, JUL 12</span><div class="line"></div></div>
+
+      <div class="card" onclick="openDetail('hike')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Sirao Garden Loop + Coffee</p>
+            <p class="card-sub">Busay · by Cebu Weekend Walkers</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,24 20,22 40,18 60,20 80,10 100,14 120,12" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow"><span class="tag">3.1 km</span><span class="tag">Easy</span><span class="tag">Family-friendly</span></div>
+      </div>
+
+      <div class="card" onclick="openDetail('hike')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Mt. Pulag Traverse, Benguet</p>
+            <p class="card-sub">3D2N · by Northbound Expeditions</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,20 30,22 46,6 62,10 78,4 94,14 110,10 120,18" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow">
+          <span class="tag outside">Outside Cebu</span>
+          <span class="tag far">Book by Aug 2</span>
+          <span class="tag">₱4,500 all-in</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================== RACES FEED ===================== -->
+  <div class="screen hide" id="screen-races">
+    <div class="appbar">
+      <p class="wordmark"><span class="pin">⛰</span>Trailhead Cebu</p>
+      <div class="mode-tabs">
+        <div class="mode-tab is-hikes" onclick="showScreen('hikes')">Hikes</div>
+        <div class="mode-tab is-races active" onclick="showScreen('races')">Races</div>
+      </div>
+    </div>
+    <div class="chiprow">
+      <div class="chip active races">All upcoming</div>
+      <div class="chip">Next 3 months</div>
+      <div class="chip">3–6 months out</div>
+      <div class="chip">Cebu</div>
+      <div class="chip">Visayas / PH</div>
+    </div>
+    <div class="feed">
+
+      <div class="justannounced" onclick="openDetail('race')">
+        <p class="label">★ JUST ANNOUNCED — 2 DAYS AGO</p>
+        <p class="card-title">Sugbu SkyRace 2026</p>
+        <p class="card-sub" style="color:#E4EEF2;">Mantalongon, Dalaguete · Nov 7, 2026 · 126 days to go</p>
+      </div>
+
+      <div class="datedivider"><span>SEP 5–6 · 2 RACES THIS WEEKEND</span><div class="line"></div></div>
+
+      <div class="card" onclick="openDetail('race')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Babag Ridge Run</p>
+            <p class="card-sub">Cebu City · Tabacolan Trail Runners</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 18,16 36,20 54,8 72,14 90,6 108,16 120,12" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow">
+          <span class="tag far">68 days to go</span>
+          <span class="tag">10K · 21K</span>
+          <span class="tag">Reg open</span>
+        </div>
+      </div>
+
+      <div class="card" onclick="openDetail('race')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Kan-irag Vertical Kilometer</p>
+            <p class="card-sub">Argao · Visayas Trail Series</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,24 28,26 42,10 56,14 70,2 84,8 98,4 120,8" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow"><span class="tag far">68 days to go</span><span class="tag">5K VK</span><span class="tag urgent">Early bird ends in 6d</span></div>
+      </div>
+
+      <div class="datedivider"><span>JAN 2027</span><div class="line"></div></div>
+
+      <div class="card" onclick="openDetail('race')">
+        <div class="card-top">
+          <div>
+            <p class="card-title">Visayas Mountain Ultra</p>
+            <p class="card-sub">Negros Oriental · Region-wide series</p>
+          </div>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,10 32,18 48,4 64,16 80,8 96,20 110,12 120,18" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tagrow">
+          <span class="tag outside">Outside Cebu</span>
+          <span class="tag far">Reg opens Sep 1</span>
+          <span class="tag">50K · 100K</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================== EVENT DETAIL ===================== -->
+  <div class="screen hide" id="screen-detail">
+    <div class="detail-hero">
+      <button class="backbtn" onclick="showScreen(lastFeed)">← Back to list</button>
+      <div class="segctl">
+        <button class="segbtn hike" id="seg-hike" onclick="setDetailMode('hike')">Viewing as Hiker</button>
+        <button class="segbtn race" id="seg-race" onclick="setDetailMode('race')">Viewing as Runner</button>
+      </div>
+      <p class="detail-title" id="detTitle">Mt. Manunggal Trail</p>
+      <p class="detail-sub" id="detSub">Balamban, Cebu · Sat, Jul 4 · by Sugbu Trekkers PH</p>
+    </div>
+
+    <div class="detail-body">
+      <svg class="bigspark" viewBox="0 0 400 60" preserveAspectRatio="none">
+        <polyline id="bigSparkLine" points="0,52 50,40 100,44 150,16 200,28 250,8 300,22 350,18 400,30" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <div class="statgrid" id="statGrid">
+        <div class="stat"><div class="v">6.4 km</div><div class="l">Distance</div></div>
+        <div class="stat"><div class="v">320 m</div><div class="l">Elev. gain</div></div>
+        <div class="stat"><div class="v">Moderate</div><div class="l">Difficulty</div></div>
+      </div>
+
+      <!-- HIKER VIEW -->
+      <div id="hikeContent">
+        <div class="section">
+          <h3>Logistics</h3>
+          <div class="infoline"><span class="k">Meetup point</span><span class="v">Balamban Public Market</span></div>
+          <div class="infoline"><span class="k">Meetup time</span><span class="v">5:00 AM</span></div>
+          <div class="infoline"><span class="k">RSVP cut-off</span><span class="v">Thu, Jul 2 · 6 PM</span></div>
+          <div class="infoline"><span class="k">Fee</span><span class="v">₱300 / pax</span></div>
+        </div>
+        <div class="section">
+          <h3>Organizer</h3>
+          <div class="infoline"><span class="k">Group</span><span class="v">Sugbu Trekkers PH</span></div>
+          <div class="infoline"><span class="k">Contact</span><span class="v">via Facebook page</span></div>
+        </div>
+        <div class="section">
+          <div class="note">Local Cebu hike — short notice is normal here. Out-of-Cebu trips on this site are flagged separately and posted with longer lead time.</div>
+        </div>
+        <div class="ctarow">
+          <button class="cta primary hike">Message organizer</button>
+          <button class="cta secondary">Save</button>
+        </div>
+      </div>
+
+      <!-- RUNNER VIEW -->
+      <div id="raceContent" class="hide">
+        <div class="section">
+          <h3>Distances</h3>
+          <div class="distrow"><span class="dname">10K</span><span class="dmeta">Cut-off 2h30 · ₱1,200</span></div>
+          <div class="distrow"><span class="dname">21K</span><span class="dmeta">Cut-off 5h · ₱1,800</span></div>
+          <div class="distrow"><span class="dname">42K</span><span class="dmeta">Cut-off 9h · ₱2,500</span></div>
+        </div>
+        <div class="section">
+          <h3>Registration</h3>
+          <div class="infoline"><span class="k">Status</span><span class="v">Open</span></div>
+          <div class="infoline"><span class="k">Early bird ends</span><span class="v">Aug 15, 2026</span></div>
+          <div class="infoline"><span class="k">Venue</span><span class="v">Babag Ridge, Cebu City</span></div>
+        </div>
+        <div class="section">
+          <div class="note">Plan ahead: nearest airport is Mactan-Cebu (CEB). Race weekend falls on a long weekend — flights and Airbnbs in the area tend to fill up by 6–8 weeks out.</div>
+        </div>
+        <div class="ctarow">
+          <button class="cta primary race">Go to registration</button>
+          <button class="cta secondary">Add to calendar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let lastFeed = 'hikes';
+
+  function showScreen(name){
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hide'));
+    document.getElementById('screen-' + name).classList.remove('hide');
+    if(name === 'hikes' || name === 'races') lastFeed = name;
+  }
+
+  function toggleCluster(e){
+    e.currentTarget.classList.toggle('open');
+  }
+
+  function openDetail(type){
+    setDetailMode(type);
+    showScreen('detail');
+  }
+
+  function setDetailMode(type){
+    const isHike = type === 'hike';
+    document.getElementById('seg-hike').classList.toggle('active', isHike);
+    document.getElementById('seg-race').classList.toggle('active', !isHike);
+    document.getElementById('hikeContent').classList.toggle('hide', !isHike);
+    document.getElementById('raceContent').classList.toggle('hide', isHike);
+
+    const line = document.getElementById('bigSparkLine');
+    const grid = document.getElementById('statGrid');
+    const title = document.getElementById('detTitle');
+    const sub = document.getElementById('detSub');
+
+    if(isHike){
+      line.setAttribute('stroke', '#F2611B');
+      grid.innerHTML = `
+        <div class="stat"><div class="v">6.4 km</div><div class="l">Distance</div></div>
+        <div class="stat"><div class="v">320 m</div><div class="l">Elev. gain</div></div>
+        <div class="stat"><div class="v">Moderate</div><div class="l">Difficulty</div></div>`;
+      title.textContent = 'Mt. Manunggal Trail';
+      sub.textContent = 'Balamban, Cebu · Sat, Jul 4 · by Sugbu Trekkers PH';
+    } else {
+      line.setAttribute('stroke', '#235E78');
+      grid.innerHTML = `
+        <div class="stat"><div class="v">126</div><div class="l">Days to go</div></div>
+        <div class="stat"><div class="v">42K</div><div class="l">Max distance</div></div>
+        <div class="stat"><div class="v">Open</div><div class="l">Reg. status</div></div>`;
+      title.textContent = 'Babag Ridge Run';
+      sub.textContent = 'Cebu City · Sep 5, 2026 · by Tabacolan Trail Runners';
+    }
+  }
+
+  // default state
+  setDetailMode('hike');
+</script>
+
+<script>
+  /* ============================================================
+     SPRINT 1 — DATA LAYER
+     Fetch / parse / merge event rows from the published Google
+     Sheet (two tabs: Hikes, Races). No UI wiring yet — this only
+     produces a clean, merged array of event objects, inspectable
+     via console. Rendering happens in Sprint 2.
+     ============================================================ */
+
+  // ---- CONFIG ------------------------------------------------
+  // Flip USE_LIVE_DATA to true once deployed and both URLs are
+  // confirmed working (paste a real CSV URL into a browser tab —
+  // you should see plain comma-separated text, not a Sheets page).
+  const USE_LIVE_DATA = false;
+
+  const HIKES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=574412184&single=true&output=csv";
+  const RACES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=1609559383&single=true&output=csv";
+
+  // ---- PLACEHOLDER DATA ---------------------------------------
+  // Shaped exactly like real rows from the two-tab template, so
+  // swapping USE_LIVE_DATA to true requires no other code changes.
+
+  const PLACEHOLDER_HIKES_CSV =
+`type,title,date,area,location_detail,organizer,cebu_flag,lead_time_tag,elev_profile,notes,distance_km,elev_gain_m,difficulty,meetup_point,meetup_time,rsvp_cutoff,fee,contact
+hike,Mt. Manunggal Trail,2026-07-04,Mt. Manunggal,"Balamban, Cebu",Sugbu Trekkers PH,cebu,urgent,"32,20,22,6,10,4,14,10,18",Local Cebu hike — short notice is normal here.,6.4,320,Moderate,Balamban Public Market,5:00 AM,2026-07-02 18:00,300,via Facebook page
+hike,Sirao Garden Loop + Coffee,2026-07-12,Sirao Garden Loop,Busay,Cebu Weekend Walkers,cebu,far,"24,22,18,20,10,14,12",,3.1,90,Easy,Sirao Flower Farm Gate,6:00 AM,2026-07-10 18:00,200,via Facebook page
+hike,Osmeña Peak Sunrise Hike,2026-07-04,Osmeña Peak,"Mantalongon, Dalaguete",JM Outdoors,cebu,urgent,"30,18,20,4,12,6,16,10,18",,5.0,400,Moderate,Mantalongon Public Market,4:00 AM,2026-07-02 18:00,350,via Facebook page
+hike,Mt. Pulag Traverse,2026-08-01,Mt. Pulag,"Benguet (3D2N)",Northbound Expeditions,outside,far,"40,24,28,10,16,8,20,14,22",Out-of-Cebu trip — longer lead time applies.,15,1200,Hard,Cebu City Meetup Point,TBA,2026-07-20 18:00,4500,via Facebook page`;
+
+  const PLACEHOLDER_RACES_CSV =
+`type,title,date,area,location_detail,organizer,cebu_flag,lead_time_tag,elev_profile,notes,reg_status,early_bird_date,venue,distances
+race,Sugbu SkyRace 2026,2026-11-07,Mantalongon,"Mantalongon, Dalaguete",Sugbu SkyRunners,cebu,far,"36,20,24,8,18,6,16,14,20",Just announced — plan ahead.,Open,2026-09-01,"Mantalongon, Dalaguete","21K · 42K · 80K"
+race,Babag Ridge Run,2026-09-05,Babag Ridge,Cebu City,Tabacolan Trail Runners,cebu,far,"30,16,20,8,14,6,16,12",,Open,2026-08-15,"Babag Ridge, Cebu City","10K · 21K"
+race,Kan-irag Vertical Kilometer,2026-09-05,Kan-irag,Argao,Visayas Trail Series,cebu,far,"32,24,26,10,14,2,8,4,8",,Open,2026-08-30,"Kan-irag, Argao","5K VK"
+race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wide series,outside,far,"30,10,18,4,16,8,20,12,18",,Reg opens Sep 1,,"Negros Oriental","50K · 100K"`;
+
+  // ---- CSV PARSER ----------------------------------------------
+  // Handles quoted fields (commas/line breaks inside quotes), which
+  // Google's published CSV export uses for fields like addresses
+  // that contain commas.
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (c === '"' && next === '"') { field += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { field += c; }
+      } else {
+        if (c === '"') { inQuotes = true; }
+        else if (c === ',') { row.push(field); field = ""; }
+        else if (c === '\r') { /* skip */ }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+        else { field += c; }
+      }
+    }
+    if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+
+    const headers = rows.shift().map(h => h.trim());
+    return rows
+      .filter(r => r.some(cell => cell.trim() !== "")) // skip blank trailing rows
+      .map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => {
+          const val = (r[idx] !== undefined) ? r[idx].trim() : "";
+          obj[h] = val; // blank cells become "", never "undefined"
+        });
+        return obj;
+      });
+  }
+
+  // ---- FETCH + MERGE --------------------------------------------
+  async function fetchCSV(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+    return await res.text();
+  }
+
+  async function loadEvents() {
+    let hikesText, racesText;
+
+    if (USE_LIVE_DATA) {
+      [hikesText, racesText] = await Promise.all([
+        fetchCSV(HIKES_CSV_URL),
+        fetchCSV(RACES_CSV_URL)
+      ]);
+    } else {
+      hikesText = PLACEHOLDER_HIKES_CSV;
+      racesText = PLACEHOLDER_RACES_CSV;
+    }
+
+    const hikeRows = parseCSV(hikesText);
+    const raceRows = parseCSV(racesText);
+
+    // Merge into one array. `type` column is trusted, but if it's
+    // ever blank/wrong, fall back to which tab the row came from.
+    const events = [
+      ...hikeRows.map(r => ({ ...r, type: r.type || "hike" })),
+      ...raceRows.map(r => ({ ...r, type: r.type || "race" }))
+    ];
+
+    return events;
+  }
+
+  // ---- VALIDATION -------------------------------------------------
+  // Catches the most likely real-world failure mode: hand-typing
+  // mistakes in the Sheet (a forgotten date, a blank area, etc.).
+  // Required on every row regardless of type. `area` and `date`
+  // are flagged extra clearly since they're the clustering key —
+  // a blank or typo'd value here silently breaks Sprint 2's
+  // dense-day clustering rather than throwing an error.
+  const REQUIRED_FIELDS = ["type", "title", "date", "area"];
+
+  function validateEvents(events) {
+    const issues = [];
+    events.forEach((ev, idx) => {
+      const label = ev.title || `(untitled row ${idx + 1})`;
+      const tab = ev.type === "race" ? "Races" : "Hikes";
+      REQUIRED_FIELDS.forEach(field => {
+        if (!ev[field]) {
+          issues.push(`Row ${idx + 1} [${tab} tab] "${label}" — missing required "${field}"`);
+        }
+      });
+      // basic date shape check (YYYY-MM-DD) — catches the common
+      // mistake of typing a date in a different format
+      if (ev.date && !/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) {
+        issues.push(`Row ${idx + 1} [${tab} tab] "${label}" — date "${ev.date}" isn't in YYYY-MM-DD format`);
+      }
+    });
+    return issues;
+  }
+
+  // ---- RUN (Sprint 1: console-only, no UI wiring yet) -----------
+  loadEvents()
+    .then(events => {
+      console.log(`[Trailhead Cebu] Loaded ${events.length} events (USE_LIVE_DATA=${USE_LIVE_DATA})`);
+      console.table(events);
+
+      const issues = validateEvents(events);
+      if (issues.length > 0) {
+        console.warn(`[Trailhead Cebu] ${issues.length} data issue(s) found in the Sheet:`);
+        issues.forEach(msg => console.warn("  ⚠️ " + msg));
+      } else {
+        console.log("[Trailhead Cebu] No data issues found — all rows have required fields.");
+      }
+
+      // Exposed globally so it can be inspected/reused from the
+      // browser console or from Sprint 2's render layer.
+      window.trailheadEvents = events;
+    })
+    .catch(err => {
+      console.error("[Trailhead Cebu] Failed to load events:", err);
+    });
+</script>
+
+</body>
+</html>
