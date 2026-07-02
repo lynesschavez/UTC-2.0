@@ -83,14 +83,21 @@
     position:sticky; top:0; z-index:5;
   }
   .wordmark{
+    width:100%;
+    display:flex; align-items:baseline; justify-content:center;
+    gap:7px;
     font-family:var(--display);
-    font-weight:600;
-    font-size:19px;
-    letter-spacing:.02em;
+    line-height:1.2;
     margin:0;
-    display:flex; align-items:center; gap:8px;
+    background:none; border:none; padding:0;
+    color:inherit; cursor:pointer;
   }
-  .wordmark .pin{color:var(--flag-orange);}
+  .wordmark:hover{ opacity:.85; }
+  .wordmark .wm-main, .wordmark .wm-sub{
+    font-weight:600;
+    font-size:clamp(11px, 3.6vw, 17px);
+    letter-spacing:.03em;
+  }
   .tagline{
     font-family:var(--mono);
     font-size:11px;
@@ -121,7 +128,7 @@
   .chiprow{
     display:flex; gap:7px; padding:12px 14px 4px;
     overflow-x:auto; flex-shrink:0; background:var(--paper);
-    position:sticky; top:0;
+    position:sticky; top:0; z-index:4;
   }
   .chip{
     font-family:var(--mono);
@@ -226,16 +233,18 @@
 
   /* ---------- landing screen ---------- */
   .landing-hero{
-    background:var(--canopy);
+    background:var(--canopy) url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20227.42%20183.78%22%3E%3Cg%20fill%3D%22%23F2EEE2%22%20fill-opacity%3D%220.08%22%3E%3Cpolygon%20points%3D%22135.16%2027.81%20179.48%2072.12%20207.29%2072.12%20135.16%200%20113.6%2021.56%20127.5%2035.47%20135.16%2027.81%22/%3E%3Cpolygon%20points%3D%2292.26%20155.98%2047.94%20111.66%2020.13%20111.66%2092.26%20183.78%20113.82%20162.22%2099.91%20148.31%2092.26%20155.98%22/%3E%3Cpolygon%20points%3D%22227.19%2091.78%20227.2%2091.77%20217.58%2082.15%20217.39%2081.95%2037.61%2081.97%2085%2034.58%20122.54%2072.12%20150.35%2072.12%2085.09%206.69%200%2091.77%200.23%2092%200.22%2092.01%209.84%20101.63%2010.03%20101.83%20189.81%20101.81%20142.42%20149.2%20104.88%20111.66%2077.07%20111.66%20142.33%20177.1%20227.42%2092.01%20227.19%2091.78%22/%3E%3C/g%3E%3C/svg%3E") no-repeat;
+    background-position:right 18px top 18px;
+    background-size:150px auto;
     padding:30px 22px 26px;
     color:var(--mist);
   }
   .landing-hero h1{
     font-family:var(--display);
-    font-size:25px;
+    font-size:21px;
     font-weight:600;
-    line-height:1.15;
-    margin:14px 0 6px;
+    line-height:1.2;
+    margin:12px 0 6px;
   }
   .landing-hero p{
     font-family:var(--body);
@@ -244,30 +253,348 @@
     margin:0;
     line-height:1.5;
   }
+  .landing-hero p em{
+    font-style:italic;
+  }
+  .search-bar{
+    display:flex; align-items:center; gap:10px;
+    margin-top:18px;
+    padding:11px 14px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.14);
+  }
+  .search-bar svg{ flex-shrink:0; opacity:.7; }
+  .search-bar input{
+    flex:1;
+    min-width:0;
+    background:none;
+    border:none;
+    outline:none;
+    font-family:var(--body);
+    font-size:13.5px;
+    color:var(--mist);
+  }
+  .search-bar input::placeholder{ color:#92A089; }
+  .search-bar .search-clear{
+    flex-shrink:0; border:none; background:none; color:var(--mist);
+    opacity:.6; font-size:18px; line-height:1; cursor:pointer; padding:2px 2px;
+  }
+  .search-bar .search-clear:hover{ opacity:1; }
+
+  /* docked variant: sits inside the sticky appbar on Hikes/Races,
+     under the mode tabs, instead of floating in the hero */
+  .appbar .search-bar{ margin-top:12px; }
+
+  /* landing-page search bar: lives in its own sticky strip right
+     below the hero (rather than floating inside it) so it pins to
+     the top of the screen while scrolling, echoing the appbar's
+     sticky search on the Hikes/Races screens. Solid canopy backdrop
+     so scrolled content never shows through once it's stuck. */
+  .search-sticky{
+    position:sticky; top:0; z-index:5;
+    background:var(--canopy);
+    padding:14px 22px 16px;
+  }
+  .search-sticky .search-bar{ margin-top:0; }
+
+  .empty-state{
+    font-family:var(--body); font-size:13px; color:var(--char-soft);
+    text-align:center; padding:36px 20px 30px; line-height:1.5;
+  }
+  .empty-state .eq{ color:var(--char); font-weight:600; }
+  .empty-state .clearlink{
+    display:inline-block; margin-top:10px; font-family:var(--mono); font-size:11.5px;
+    color:var(--dawn-blue); text-decoration:underline; cursor:pointer; background:none; border:none;
+  }
   .panels{ padding:18px 16px; display:flex; flex-direction:column; gap:12px; flex:1; }
+  .stats-strip{
+    display:flex; gap:10px;
+    margin:0 16px 14px;
+  }
+  .stats-strip .scol{
+    flex:1;
+    background:var(--mist);
+    border-radius:12px;
+    padding:12px 8px;
+    text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    border:1px solid transparent;
+    font:inherit;
+    color:inherit;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    transition:background .15s ease;
+  }
+  .stats-strip .scol:hover{ background:#ECE7D8; }
+  .stats-strip .scol:focus-visible{ outline:2px solid var(--dawn-blue); outline-offset:2px; }
+  .stats-strip .scol:active{ transform:scale(.98); }
+  .stats-strip .scol svg{ color:var(--moss); }
+  .stats-strip .snum{
+    font-family:var(--display); font-weight:600; font-size:17px; color:var(--char);
+  }
+  .stats-strip .slabel{
+    font-family:var(--body); font-size:10px; color:var(--char-soft); line-height:1.2;
+    text-decoration:underline dotted;
+    text-decoration-color:var(--moss-line);
+    text-underline-offset:2px;
+  }
+
+  /* ---------- stat info popover / bottom sheet ----------
+     One shared overlay + panel, content swapped per stat via JS.
+     Positioned absolute within .app so it's confined to the phone
+     frame on desktop and full-bleeds naturally on mobile, same as
+     every .screen. Mobile gets a bottom sheet (touch-friendly, no
+     hover dependency); desktop gets a small anchored popover next
+     to the icon that was tapped/clicked. */
+  .stat-info-overlay{
+    position:absolute; inset:0;
+    z-index:50;
+    background:rgba(22,20,15,0);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .22s ease, background .22s ease;
+  }
+  .stat-info-overlay.show{
+    opacity:1;
+    background:rgba(22,20,15,0.38);
+    pointer-events:auto;
+  }
+  .stat-info-overlay.hide{ display:none; }
+
+  .stat-info-sheet{
+    position:absolute;
+    background:var(--paper);
+    box-sizing:border-box;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+  }
+  .stat-info-close{
+    position:absolute; top:10px; right:10px;
+    width:26px; height:26px; border-radius:50%;
+    border:none; background:var(--mist); color:var(--char-soft);
+    font-size:15px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+  .stat-info-close:hover{ background:var(--moss-line); color:var(--char); }
+  .stat-info-close:focus-visible{ outline:2px solid var(--dawn-blue); outline-offset:2px; }
+  .stat-info-handle{
+    width:36px; height:4px; border-radius:2px;
+    background:var(--moss-line);
+    margin:0 auto 14px;
+    flex-shrink:0;
+  }
+  .stat-info-title{
+    font-family:var(--display); font-size:15.5px; font-weight:600; color:var(--char);
+    margin:0 30px 8px 0; line-height:1.3;
+  }
+  .stat-info-body{
+    font-family:var(--body); font-size:13px; color:var(--char-soft);
+    margin:0; line-height:1.55;
+  }
+
+  /* mobile (default): bottom sheet. Capped to the app's own height
+     (minus a small margin) with internal scroll, so a short viewport
+     or longer copy scrolls inside the sheet instead of being clipped
+     by .app's overflow:hidden. */
+  .stat-info-sheet.is-sheet{
+    left:0; right:0; bottom:0;
+    max-height:calc(100% - 28px);
+    border-radius:20px 20px 0 0;
+    padding:14px 20px max(20px, env(safe-area-inset-bottom, 20px));
+    box-shadow:0 -12px 30px -10px rgba(0,0,0,0.4);
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+  }
+  .stat-info-overlay.show .stat-info-sheet.is-sheet{ transform:translateY(0); }
+  .stat-info-sheet.is-sheet .stat-info-handle{ display:block; }
+
+  /* desktop: anchored popover, positioned via JS (left/top/max-height).
+     JS measures real content height each open and flips the popover
+     above the trigger (adding .flip-up) when there isn't room below,
+     always clamping max-height to whatever space is actually available
+     so content scrolls internally rather than getting clipped. */
+  @media (min-width:640px){
+    .stat-info-sheet.is-popover{
+      width:260px;
+      border-radius:14px;
+      padding:16px 18px;
+      box-shadow:0 16px 34px -12px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
+      transform:translateY(-6px);
+      opacity:0;
+      transition:opacity .18s ease, transform .18s ease;
+    }
+    .stat-info-overlay.show .stat-info-sheet.is-popover{ transform:translateY(0); opacity:1; }
+    .stat-info-sheet.is-popover .stat-info-handle{ display:none; }
+    .stat-info-sheet.is-popover::before{
+      content:"";
+      position:absolute;
+      top:-6px;
+      left:var(--caret-left, 40px);
+      transform:translateX(-50%) rotate(45deg);
+      width:12px; height:12px;
+      background:var(--paper);
+      box-shadow:-2px -2px 4px -2px rgba(0,0,0,0.06);
+    }
+    /* flipped above the trigger: caret moves to the bottom edge and
+       points down instead of up */
+    .stat-info-sheet.is-popover.flip-up{ transform:translateY(6px); }
+    .stat-info-overlay.show .stat-info-sheet.is-popover.flip-up{ transform:translateY(0); }
+    .stat-info-sheet.is-popover.flip-up::before{
+      top:auto; bottom:-6px;
+      box-shadow:3px 3px 4px -2px rgba(0,0,0,0.06);
+    }
+  }
   .panel{
     border-radius:16px;
     padding:18px;
     cursor:pointer;
     position:relative;
     overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
   }
   .panel.hikes{ background:var(--flag-orange); color:#fff; }
   .panel.races{ background:var(--dawn-blue); color:#fff; }
+  .panel-content{ position:relative; z-index:1; flex:1; padding-right:36px; }
   .panel .ptitle{ font-family:var(--display); font-size:20px; font-weight:600; margin:0 0 4px; }
   .panel .psub{ font-family:var(--body); font-size:12.5px; opacity:.92; margin:0 0 10px; max-width:80%; }
   .panel .pmeta{ font-family:var(--mono); font-size:11px; opacity:.85; }
-  .panel .arrow{ position:absolute; right:16px; bottom:16px; font-size:26px; opacity:.5; }
+  /* arrow lives as its own badge, echoing the icon-badge treatment, anchored
+     to the card's bottom-right corner — an endpoint the eye lands on after
+     reading title → subtext → stat, rather than a glyph floating mid-card. */
+  .panel .arrow{
+    position:absolute; z-index:1;
+    right:16px; bottom:16px;
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
+    background:rgba(255,255,255,0.16);
+    border:1px solid rgba(255,255,255,0.26);
+    font-size:15px; line-height:1; color:#fff;
+    transition:background .2s, transform .2s;
+  }
+  .panel:hover .arrow{ background:rgba(255,255,255,0.28); transform:translateX(2px); }
+  /* background watermark art — original supplied artwork used unaltered.
+     Oversized and bottom-anchored so the mountain's base sinks below the
+     card's bottom edge (cropped there), while the peak stays fully in view. */
+  .hikes-watermark{
+    position:absolute; z-index:0; pointer-events:none;
+    right:-140px; bottom:-20px;
+    height:108px; width:auto;
+    opacity:0.18;
+  }
+  .hikes-watermark svg{ width:auto; height:100%; display:block; fill:#fff; }
+  /* icon badge — scoped to the Hikes & Treks panel only */
+  .hikes-icon-row{ display:flex; align-items:center; gap:10px; margin:0 0 6px; }
+  .panel.hikes .hikes-icon-row .ptitle{ margin:0; }
+  .hikes-icon-badge{
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    width:40px; height:40px;
+    border-radius:11px;
+    background:rgba(255,255,255,0.16);
+    border:1px solid rgba(255,255,255,0.26);
+  }
+  .hikes-icon-badge svg{ width:22px; height:auto; fill:#fff; display:block; }
+  /* icon badge — scoped to the Trail Races panel only */
+  .races-icon-row{ display:flex; align-items:center; gap:10px; margin:0 0 6px; }
+  .panel.races .races-icon-row .ptitle{ margin:0; }
+  .races-icon-badge{
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    width:40px; height:40px;
+    border-radius:11px;
+    background:rgba(255,255,255,0.16);
+    border:1px solid rgba(255,255,255,0.26);
+  }
+  .races-icon-badge svg{ width:20px; height:auto; fill:#fff; display:block; }
+  /* background watermark art — original supplied artwork used unaltered.
+     Oversized and bottom-anchored so the mountain's base sinks below the
+     card's bottom edge (cropped there), while the peak stays fully in view. */
+  .races-watermark{
+    position:absolute; z-index:0; pointer-events:none;
+    right:-140px; bottom:-20px;
+    height:108px; width:auto;
+    opacity:0.18;
+  }
+  .races-watermark svg{ width:auto; height:100%; display:block; fill:#fff; }
+  .panel-art{
+    position:absolute; right:0; bottom:0;
+    width:62%; max-width:220px; height:auto;
+    z-index:0; pointer-events:none;
+  }
   .ticker{
     font-family:var(--mono); font-size:11.5px; color:var(--char-soft);
     text-align:center; padding:0 20px 16px;
   }
   .landing-footer{
-    margin-top:auto; padding:14px 18px 18px;
+    margin-top:auto; padding:14px 18px;
     font-family:var(--mono); font-size:10.5px; color:#9aa091;
-    border-top:1px solid var(--moss-line); display:flex; justify-content:space-between;
+    border-top:1px solid var(--moss-line); display:flex; align-items:center; justify-content:center;
   }
-  .landing-footer a{ color:var(--moss); text-decoration:underline; }
+
+  .week-preview{ margin:0 16px 14px; }
+  .week-preview h2{
+    font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--moss); margin:0 0 8px;
+  }
+  .wp-item{
+    display:flex; align-items:center; gap:10px;
+    background:#fff; border:1px solid var(--moss-line); border-radius:12px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .wp-item:last-child{ margin-bottom:0; }
+  .wp-dot{
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  }
+  .wp-dot.hike{ background:var(--flag-orange); }
+  .wp-dot.race{ background:var(--dawn-blue); }
+  .wp-body{ flex:1; min-width:0; }
+  .wp-title{
+    font-family:var(--body); font-weight:600; font-size:13px; color:var(--char);
+    margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .wp-meta{
+    font-family:var(--mono); font-size:10.5px; color:var(--char-soft);
+  }
+  .wp-empty{
+    font-family:var(--body); font-size:12.5px; color:var(--char-soft);
+    background:var(--mist); border-radius:12px; padding:14px; text-align:center;
+  }
+  .footer-social{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .footer-social a{
+    display:flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%;
+    border:1px solid var(--moss-line); color:var(--moss);
+    text-decoration:none; flex-shrink:0;
+  }
+  .footer-social svg{ width:12px; height:12px; }
+
+  .callout{
+    margin:0 16px 14px;
+    border:1.5px dashed var(--moss-line);
+    border-radius:14px;
+    background:var(--mist);
+    padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+  }
+  .callout-top{ display:flex; align-items:flex-start; gap:10px; min-width:0; }
+  .callout-top svg{ color:var(--char); flex-shrink:0; margin-top:1px; }
+  .callout-text p{ margin:0; font-family:var(--body); font-size:12.5px; line-height:1.45; color:var(--char-soft); }
+  .callout-text p:first-child{ font-weight:500; color:var(--char); }
+  .callout-cta{
+    flex-shrink:0; display:flex; align-items:center; gap:7px;
+    background:var(--canopy); color:#fff;
+    font-family:var(--body); font-weight:600; font-size:13px;
+    padding:11px 16px; border-radius:999px;
+    text-decoration:none; white-space:nowrap;
+  }
+  .callout-cta .plus{ font-size:16px; line-height:1; font-weight:600; }
 
   /* ---------- detail screen ---------- */
   .detail-hero{ background:var(--canopy); padding:16px 16px 0; color:var(--mist); }
@@ -327,38 +654,111 @@
   <!-- ===================== LANDING ===================== -->
   <div class="screen" id="screen-landing">
     <div class="landing-hero">
-      <p class="tagline">CEBU TRAIL &amp; HIKE FINDER</p>
-      <h1>One list.<br>Every climb, every race.</h1>
-      <p>No more digging through five group chats and a dozen FB pages.</p>
+      <p class="tagline">MASL.PH - UNIFIED TRAIL CALENDAR</p>
+      <h1>Every trek, every race. <strong>One place.</strong></h1>
+      <p>Spend less time searching and more time trail-ing.</p>
+    </div>
+    <div class="search-sticky">
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mist)">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="heroSearchInput" placeholder="Search mountains, races, organizers..." oninput="handleSearch(this.value)">
+        <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
+      </div>
     </div>
     <div class="panels">
       <div class="panel hikes" onclick="showScreen('hikes')">
-        <p class="ptitle">Hikes &amp; Treks</p>
-        <p class="psub">Local Cebu day-hikes and out-of-town trips, sorted by how soon you can join.</p>
+        <div class="hikes-watermark" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1175.24 340.09"><g id="Layer_2" data-name="Layer 2"><path d="M1407,520.4c-29.17-6.84-59.7-12.19-87.43-24.23-9.44-4.18-18.31-9.57-27.86-13.45-10.35-4.36-21.55-6-32-9.78-14.31-5.42-27.05-15.29-40-25.1-13.43-9.81-25-22-38-32.63-7.68-6-16.75-7.13-25.31-11-15.24-6.7-25.2-27-38.89-35.11-10-6.41-23.66-4.3-34-10.11-16.28-8.6-25.46-33.35-44.53-32.62-12.52.95-26,11.14-37,2.68-15.92-13.91-52.61-48.38-68.69-62.93-3.68-3.33-7.33-5.87-12.49-4.51-12.56,2.78-29.68,17-42.29,7.9-9.43-7.68-15.91-19.66-25-28-8.23-8.59-19.29-13.71-28.55-19.89-12.68-8.86-19.94-24.66-30.64-35.38-6.5-6.7-10.71-5.69-17.45.61C756,208.15,736.35,226.37,718.51,249c-8.44,10-18.21,17.74-26.89,27.6-3.21,3.44-6.41,7-10.45,9.39-5.66,3.5-12,3.36-17.36,4.92-12.23,3.21-16.49,21.64-25.66,28.27-12.23,8.62-23.83-7.7-33.9-14-7.86-6.27-16-2.17-22.21,4.63-4.81,4.74-9.48,10-14,15-11.16,13-22.37,21.75-33.93,33.4-9.54,9.67-16.48,21.39-23.28,33.11-3.94,6-7.39,14.5-15.26,13.73-13.29-1.66-27.84-22.78-42.45-11.72-20.43,15.47-36.59,36.83-56,53.66-32.59,29.17-74.35,43.32-114.39,58.88-15.3,6.39-35.87,11.27-50.72,15.31,19,.6,935.49,1.11,1175.25-.7Zm-211.31-63c5.41,7.8,11.42,18.21-.52,10-14.43-10-31-21.31-38.89-36.59-1.35-2.84-3.61-7.47-1.23-9.87,12.64-3.42,33.61,26.38,40.28,35.92Zm-232.05-13c-9.16-7.94-21.4-18.71-28.46-29.21-4.06-6.42-.54-6.93,4-4.7,16.77,7.61,52,39.8,65.54,56.07,1.37,1.72,3.52,4.09,3.83,5.58a.27.27,0,0,1-.24.29c-3.1-.51-9.23-5.12-17.88-10.35-8.65-5.55-19.56-11.88-26.41-17.38Zm143-63.18c6.39-1.41,18.37,19.65,16.13,22.95-5.15,2.27-19.56-18.76-16.34-22.8Zm-69.7,2.4c2.19-2.15,2.53-6.51,2.38-11.3-.62-8,.64-17.24,8.8-20.23,14.64-4.43,23.43,12,31.08,23.56,10.25,17.38,18,34.83,27.07,49.58,3.37,5.95-7.12-2.6-13.58-6.59L1059,396.19c-7.81-5.18-12.31-8.43-12.62-7.36,5.69,13.8,25.68,47.52,33.72,63.37,7.62,13.76,7.71,14.64-1.67,5.54-21.85-21.22-47.6-40.74-64.62-65.43-2.05-3.17-8.94-13.05-2-13.17,6.41.11,18.21,9.77,24.84,4.78ZM928.13,315.56c1.31-.77,1.55-3.32.92-7.22-4.81-22.55-12.35-37.66,14-14.14,13.72,12.64,29.19,19.63,39.75,34.93,5.06,6.84,39.11,63.41,9.34,38.29-10.41-7.86-28.54-30.85-24.2-5,6.46,41.52,36.46,75.33,64.24,107.15,2,2.6,5.94,7,5.47,9-2.79.55-9.88-5.63-13-8.06-19.25-15.91-38.77-31.75-54.78-50.7C959.62,408,950.15,395.31,939,384.24c-24.24-20.76-19.17-20.64-29.1-49.71-1.93-6.58-8.64-23.46,2.63-23.46,5.34.27,11.69,5.67,15.41,4.59ZM777.39,241.33c9.33,2,15.47,6.34,12.66-7.53-.69-4.79-5.84-25.15,3.33-22.28,5.64,2.59,11.39,16.15,14.47,23.7,5.88,13.17,12.76,27.44,23.1,37.64,2.61,2,2.18-2.4,1.65-4.8-.28-5.55-12.37-30,1.46-22.45C859.85,261.4,864,294,879,318.87c7.64,13.4,18.48,25.29,28,37.21,8.15,10.49,3.61,11.69-6.84,4.73-10.63-7.11-20.58-16.83-30-25.86-2.33-1.83-18.59-19.93-18.44-11,.22,4.09,4.94,13,7.26,20.42,2.25,6.88,3,13.94,4.11,21,1.55,10.89,6.9,20.84,12.45,30.25,4.13,6.95,8.86,14.54,9.61,18a2.33,2.33,0,0,1-.09,2c-1.89,1-4-1.12-7.34-3.23-7.45-5.62-15.9-12.77-23.44-19-10.15-8.52-19.9-17.1-28.28-27.3-8-9.5-15.3-21.14-23.33-31-13.81-17.3-45.22-39.36-4.05-45.18,5.36-1.92.53-8.14-1.41-11.56-1.86-4.6-28.78-36.92-20.11-37Zm-9.87,119.09c1.89-4.14,7.75-8.72,11.46-12.29,7.6-7.66,14.58-7.38,21.57-.67,15.44,14.44,31,36.75,46.65,52.7,16,20.21,47.39,63.66,55.78,75.63-14.63-8-65.54-49.25-81.83-58.57-4.44-.12,10.72,35.51,5.1,32.75-4.73-3.43-12.61-12.16-18.28-17.57-6.3-6.34-12.89-12.7-18.91-18.95-3.06-3.43-5.36-6.05-5.39-10.33C786,392,787,388.34,777.86,378.56c-4-5.13-12.28-11.06-10.46-17.82Zm-85.81,77.84c1.22,2.12.4,6,.06,8.63-2.22,13.16-7.52,27.58-16.46,37.28-5.43,5.67-13.45,10.91-14.73,6.13-1.41-7.43,24.32-54,31-52.18ZM586,347.79a69.37,69.37,0,0,0,6.36-10.38c4.28-7.5,2.84-23.19,13.38-17.75,3.81,2.26,7.92,6.7,11,10.4,2.51,3.21,5.69,6.48,5.89,10.54,0,4.15-6.41,3.72-12.38,9.29-10,9.94-20.55,21.35-30.34,31.39a90.58,90.58,0,0,1-7.64,7.52c-.76.51-1.38,1.07-1.76.3-.51-1.66,2.81-10.89,5.45-19.24,2.41-7.49,5.16-15.21,9.74-21.6Z" transform="translate(-232 -181.62)"></path></g></svg>
+        </div>
+        <div class="panel-content">
+        <div class="hikes-icon-row">
+          <span class="hikes-icon-badge" aria-hidden="true">
+            <svg viewBox="0 0 157.87 125.28" xmlns="http://www.w3.org/2000/svg"><path d="M7197,7304.48h-.88c-11.81,0-11.63-9-22.34-9l-.89,0c-7.48.33-12.9,9-20.39,9-1.45,0-3.06,0-4.75.1l-4.82,9.2,1.62-.07c2.93-.12,5.69-.23,7.95-.23,6.6,0,11.51-3.37,15.46-6.08,1.88-1.3,4.23-2.91,5.33-3h.49c1.94,0,2.51.41,4.85,2.33,3.28,2.67,8.22,6.72,17.49,6.72l6.25,0Zm64.38-44a21.32,21.32,0,0,0-5.42-.64l-1.57,0-1.36,0a7.49,7.49,0,0,1-2.44-.23c-.87-.39-1.92-.84-3.1-1.35l-2.24-.95c-3.51-1.49-7.92-3.36-12.63-5.46-1.11-.49-2.24-1-3.37-1.53-3.58-1.64-7.23-3.39-10.73-5.18q-2.31-1.19-4.23-2.25c-1.05-.58-2-1.13-2.9-1.65-6.46-3.78-13.33-8.09-14.13-9-.08-4.29,2.26-30.2-9-38.93a20.93,20.93,0,0,0-12.79-4.66c-11.61,0-16.13,8.06-18.55,12.39a18.23,18.23,0,0,1-1.93,3.05,53.13,53.13,0,0,1-6.08,2.72c-9.2,3.72-21.78,8.81-24.09,20.9-.28,1.51-1,4.6-1.91,8.17-.67,2.77-1.45,6-2.27,9.45-.84,3.63-1.73,7.55-2.57,11.61-1,4.67-1.87,9.51-2.6,14.23-.48,3.1-.85,6-1.12,8.69-.33,3.28-.51,6.27-.52,9-.07,7.78,1.12,13.41,3.6,17.48a14.71,14.71,0,0,0,9.22,6.9,29.6,29.6,0,0,0,6,.69l4.7-9-2.13,0a30.55,30.55,0,0,1-6.5-.49c-4.47-1.08-6-7.23-5.93-15.63h86.93l-10.05-9h-76.31a258.78,258.78,0,0,1,5.1-28.55l52.8-28.53,0-10.25-50.06,27.06c1.12-4.61,2-8.22,2.39-10.19,2.07-10.84,22.35-14.15,27.26-18.54s5-13.21,14.55-13.21a11.22,11.22,0,0,1,8.43,3.86,17,17,0,0,1,4.36,11.58V7257l9.43,5.3,7.6-5.53v9.8l7.25,4.07,11.08-6.55v12.78l5.25,3,19.36-11.56a40.44,40.44,0,0,0,4.8.55c1,0,2,0,2.93,0,3.8,0,6.74.59,6.74,6.52,0,14.28-12,29.17-27.64,29.17h-.75q-1.94-.06-4-.09l5.44,9.09c9.65-.2,18.73-4.51,25.64-12.2a39.43,39.43,0,0,0,10.27-26C7271.68,7271.34,7270.55,7262.82,7261.36,7260.44Zm-64.12-8.92v-9.1a53.32,53.32,0,0,0,6.24,4.56Zm17,7.65v-6.09c1.83.94,3.7,1.87,5.59,2.78Zm18.33,8v-5.45l5.3,2.29Zm-25.17,37.27,5.36,9c3.06,0,6.14-.05,9.13-.05h3.28l-5.38-9C7215.72,7304.34,7211.54,7304.38,7207.43,7304.41Z" transform="translate(-7113.81 -7188.64)"></path></svg>
+          </span>
+          <p class="ptitle">Hikes &amp; Treks</p>
+        </div>
+        <p class="psub">Discover hikes you can join, from local day trips to multi-day mountain adventures.</p>
         <p class="pmeta">14 open this week</p>
+        </div>
         <div class="arrow">→</div>
       </div>
       <div class="panel races" onclick="showScreen('races')">
-        <p class="ptitle">Trail Races</p>
-        <p class="psub">Every race we know about, the moment it's announced — built for planning ahead.</p>
+        <div class="races-watermark" aria-hidden="true">
+          <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1190.86 362.67"><path d="M2646.69,410.27C2618.79,389,2586.4,368,2554.23,355c-8.86-3.63-16.68-6.15-24.46-11.25-28-18.56-66.78-48.86-95.79-66.32-7.52-3.74-22.86,4.89-31.36,10.45a223.5,223.5,0,0,1-47.28,24.56c-8.73,3.1-19.08,6.94-28,4.92-9-2.23-17.73-9.61-25.88-15-16.2-11.06-28.3-20.29-41.27-34.78-11.2-11.12-21.65-26.44-36.1-32.71-11.21-4.17-24.82-4.43-35-11.52-22.76-16.39-48.42-53.86-70.07-63.13-24.57-7.83-33.88,26.73-50.26,38.13-9.25,6.55-22,6.24-32.19,14.16-7.35,5.52-12,13.82-15.95,22-4.19,8.42-8,17.78-15.66,23.22-9.29,6.91-22,5.08-29.2,12.79-8,8.26-10.45,23-21.5,28.14-9,4.14-21.06-3-30.09.48-19.89,9.21-26,38.47-48.39,45.62-32.56,11.5-60.55-24.45-82.56-42.79-12.37-12.36-28.12-11.41-41-.13-20.54,17.21-44,33.8-59.48,55-12.77,16.92-21.83,38.42-39.07,51.35a32.31,32.31,0,0,1-14.34,6c-12.13,1.82-24.88-5-34.5,1.17-12.73,8.27-18.87,23.79-29.43,34.15-14.08,13.66-34.21,32.57-49.48,47-15.26,13.57,1.51,10.43,12.28,10.33,18.17-.65,36.48-2.05,54.62-.22,13.87,1.27,28.72,5.22,41.34-.45,5.6-2.35,10.65-6.19,15.56-9.7,5.22-3.8,11.07-7.88,17.43-7.06,4.88.51,9.37,3.13,13.76,5.56,14.69,8,34.1,21.41,46.18,26.59,7.25,1.63,3.36-12.2,4.14-16.61.44-17.35,10.75-10.2,20.83-15.23,5.3-3.25-9.37-21.5-14.5-32.21-16.26-30.75-10.89-38.32,21.56-20.65,9.19,4.14,18,11.75,27.62,13.13,4-.88-6.56-14.53-13.1-26.28-6.29-12.26-17.46-31.57-3.67-42.18,3.71-3.31,8.51-6,9.91-11,3.16-7.34-12.69-36.64,3.18-38.59,4,.2,9.38,5.2,12.53,9,15,17.24,21.74,38.35,40.15,50.05,19.32,9.68,34.5,24.9,47.42,42,24,32.43,66.33,37.34,100.74,50.71,9,3.9,20.76,9.06,13-1.51-4.76-8.76-32.76-29.66-23.92-33,41.19-.25,78,32.76,111.58,56.44,3.56,2.33,8.38,6.17,12,5.13,2.95-1.1,1.25-9.37,3.66-14.46,8.06-11.38,29.79,3.74,39.67,8.68,10.55,5.63,19.78,12.81,19.8,6.56-6.92-23.5-19.62-51.26-27.71-73.89-4.27-10.8-4-11.85,2.71-8.95,16.16,7.19,72.16,32.59,92.92,41.9,1.78.79,3.23,1.39,4.28,1.76,2.12.73,2.6.46,1.63-.93-14.81-15.67-31-35.55-48.79-48.68C2160.12,405,2126,393,2098.64,373.91c-4.64-3.17-10.88-8.31-10.76-13.36.35-7.35,9.9-18.24,17.89-21.13,13.95-2.42,35,4.47,50,6.07,6.06.88,19.17,3.91,16-4.78-7.92-20.09-34.93-46.46-46.4-65-2.78-4.39-4.43-7.95-3.76-10.56.81-3.48,4.56-5,7.12-7.15,3.51-2.68,4.24-7.2,3.56-11.63-1.9-11.35-7.76-34-9.86-45.69-.18-3.11-1.63-6.6,1.15-8,1.87-.32,5.57,2.46,10,6.58,15.07,13.86,28.82,34.64,41.7,47.56,10.62,11.76,26.82,14.39,39.8,22.47,7.51,4.78,12.87,12.28,19.18,18.47,10.55,10.56,23.53,13.89,33.55,25.37,5.52,6.22,12.72,13.61,16,21,1.11,3.05-.72,3.58-4.88,1.4-10.17-4.66-19.2-17.91-29.55-23-6.92-1.7-4.31,11.92-.57,23,5.2,14.49,14.94,29,24.07,41.39,16.12,22,12.29-11.26,26.31-13,5.59-.92,12.41,3.22,17.18,6.91,32.42,26.22,63.17,54.38,102.52,68,7.06,2.1,22.43,9,16.92-5.29-4.33-12-15.45-29.07-17.5-41.33,3.3-12.55,40.77,20,45.61,25.32,26.88,25.21,45.8,61.85,78.19,80,2.61,1.4,4,1.69,3.78.72-17.68-25.15-86.32-106-104.69-132.23-1.52-5.57,1.2-10.88,1.45-17.87,1.66-9.12-4.34-33.37,8.37-29.43,12.65,6.79,25.24,17.32,36.37,26.74,14.22,12.93,19.65,35.75,28.83,53.35,8,16.54,22.85,32.87,36.85,48.63,8.87,8.59,19.6,24.06,29.81,27.16,1.43,0,1.27-1.8-.41-5.13-1.75-3.14-4.16-7.24-6.55-10.64-10.27-15.19-22.36-39.19-24.76-49.29-2.28-8.46,5.51-2.47,9.13.17,10.29,6.83,25.44,21.63,35.66,26.06,2.1.46,1.69-1.66.2-5.7-.85-2.35-2-5.37-2.95-8.5-5.55-19.15,4.67-19.47,14.72-9.62,17.58,14.58,95.06,90.44,102.77,64.91-3.57-15.1-43.82-50.42-63.3-66.08Z" transform="translate(-1519.8 -159.04)"></path><path d="M1920.85,494.79c-21.71-24.13-50.76-53.71-82.8-62.41-6.08-.3.16,6.19,1.89,8.62,21.16,25.81,44.74,54.84,76.53,65.39,10.49,3.34,13.94-1.55,5-10.86Z" transform="translate(-1519.8 -159.04)"></path><path d="M2387.15,453.25c-18.46-13.77-39.7-29-60.39-40.64-7.51-4.24-16.89-9.17-17.24-7.75-.07,1.64,4.07,5.21,5.94,7.08,29.93,27.89,62.26,55,99.28,72.9,30.45,13.16-21.24-28-26.72-30.95Z" transform="translate(-1519.8 -159.04)"></path></svg>
+        </div>
+        <div class="panel-content">
+        <div class="races-icon-row">
+          <span class="races-icon-badge" aria-hidden="true">
+            <svg viewBox="0 0 183.38 190.02" xmlns="http://www.w3.org/2000/svg"><path d="M7366.72,7330.61h-1.67c-3.13-6.07-6.95-13.44-11-21.25l-4.17-8c-1.52-2.91-3.06-5.84-4.59-8.75-1.42-2.69-2.82-5.36-4.21-8-1.78-3.34-3.51-6.6-5.18-9.7-1.49-2.78-2.93-5.44-4.28-7.92-5.06-9.26-9-16.06-10.41-17.8a17.21,17.21,0,0,0-13.37-6.38,17.72,17.72,0,0,0-16,10.1c-.84,1.79-1.88,3.91-2.87,5.88a.58.58,0,0,1-.68.3c-.8-.22-1.71-.48-2.74-.79a1.92,1.92,0,0,1-1.24-1.17,20.32,20.32,0,0,1-1-5.12,107.91,107.91,0,0,1,0-13.34,84.67,84.67,0,0,0,0-10.44,14,14,0,0,0-13.53-12.62,12.93,12.93,0,0,0-11.35,7c-2.42,4.39-13.9,24.4-20.94,36.67l-3.22,5.61a14.31,14.31,0,0,0-2.69,1.19,15.81,15.81,0,0,0-6.86,7.69c-2.49,6-.89,12.68,4.28,17.83,3.26,3.27,7.41,7.76,12.22,13,1.46,1.59,3,3.22,4.54,4.9h12.31c-9.15-9.72-17.09-18.62-22.72-24.24-6.12-6.1-.75-12,3-12a3.08,3.08,0,0,1,.75.09l59.48,57.06h13l-67.42-64.67c6.89-12,19.54-34.05,22.13-38.76a4,4,0,0,1,3.47-2.35,4.94,4.94,0,0,1,4.57,4.43c.86,9.53-3.89,34,7.45,37.53a75.56,75.56,0,0,0,9.5,2.36,3.26,3.26,0,0,0,3.46-1.72c1.32-2.57,3.6-7.06,5.21-10.47a8.79,8.79,0,0,1,7.84-4.93,8.27,8.27,0,0,1,6.46,3.15c1.16,1.39,4.78,7.79,9.51,16.49l-15.14,8.65v10.36l19.41-11.09c1.66,3.11,3.4,6.38,5.17,9.72l-17.59,10v10.36l21.79-12.45c1.54,2.93,3.08,5.87,4.6,8.75l-19.11,10.92v10.36l23.27-13.29c7.52,14.41,13.37,25.77,13.37,25.77h7.15c7.31,0,9.44,19.46-2.11,19.46-8,0-22.92.2-36,.2-12.26,0-26.88-9.16-41.17-21.29h-13.57c2.47,2.28,5,4.51,7.51,6.66,18.69,15.9,34.13,23.63,47.23,23.63,7.39,0,15.32-.06,22.32-.12,5.49,0,10.23-.08,13.7-.08,9.93,0,17.13-7.88,17.13-18.72S7375.28,7330.61,7366.72,7330.61Zm-100-12.08h-12.52c3.28,3.45,6.7,7,10.22,10.45h12.95C7273.77,7325.56,7270.2,7322,7266.75,7318.53Z" transform="translate(-7198.36 -7215.66)"></path><polygon points="180.96 172.84 180.96 181.84 125.65 181.84 115.19 168.89 96.46 190.02 35.13 126.64 18.41 148.11 11.4 157.11 0 157.11 7 148.11 34.39 112.94 96.17 176.78 115.51 154.96 129.95 172.84 180.96 172.84"></polygon></svg>
+          </span>
+          <p class="ptitle">Trail Races</p>
+        </div>
+        <p class="psub">Stay up to date with newly announced trail races across the Philippines.</p>
         <p class="pmeta">6 open for registration</p>
+        </div>
         <div class="arrow">→</div>
       </div>
     </div>
-    <div class="ticker">Updated manually by your friendly group admin · last updated 2h ago</div>
+    <div class="week-preview" id="weekPreview">
+      <h2>Featured Events</h2>
+      <div id="weekPreviewList">
+        <div class="wp-empty">Loading this week's events…</div>
+      </div>
+    </div>
+    <div class="stats-strip">
+      <button type="button" class="scol" aria-haspopup="dialog" aria-label="What's included? Tap to learn more." onclick="openStatInfo('events', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <div class="snum">150+</div>
+        <div class="slabel">Upcoming events</div>
+      </button>
+      <button type="button" class="scol" aria-haspopup="dialog" aria-label="Where do the events come from? Tap to learn more." onclick="openStatInfo('sources', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        <div class="snum">20+</div>
+        <div class="slabel">Sources monitored</div>
+      </button>
+      <button type="button" class="scol" aria-haspopup="dialog" aria-label="How often is the calendar updated? Tap to learn more." onclick="openStatInfo('updated', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <div class="snum">Weekly</div>
+        <div class="slabel">Reviewed</div>
+      </button>
+    </div>
+    <div class="callout">
+      <div class="callout-top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+        <div class="callout-text">
+          <p>Built with the outdoor community.</p>
+          <p>Know an upcoming hike or trail race? We'd love to add it.</p>
+        </div>
+      </div>
+      <a href="#" class="callout-cta"><span class="plus">+</span> Submit an Event</a>
+    </div>
     <div class="landing-footer">
-      <span>How this works</span>
-      <a href="#">Submit an event →</a>
+      <div class="footer-social">
+        <a href="#" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+        </a>
+      </div>
     </div>
   </div>
 
   <!-- ===================== HIKES FEED ===================== -->
   <div class="screen hide" id="screen-hikes">
     <div class="appbar">
-      <p class="wordmark"><span class="pin">⛰</span>Trailhead Cebu</p>
+      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines — back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes active" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races" onclick="showScreen('races')">Races</div>
+      </div>
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mist)">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="hikesSearchInput" placeholder="Search hikes, trails, organizers..." oninput="handleSearch(this.value)">
+        <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
       </div>
     </div>
     <div class="chiprow">
@@ -445,10 +845,18 @@
   <!-- ===================== RACES FEED ===================== -->
   <div class="screen hide" id="screen-races">
     <div class="appbar">
-      <p class="wordmark"><span class="pin">⛰</span>Trailhead Cebu</p>
+      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines — back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races active" onclick="showScreen('races')">Races</div>
+      </div>
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mist)">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="racesSearchInput" placeholder="Search races, organizers..." oninput="handleSearch(this.value)">
+        <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
       </div>
     </div>
     <div class="chiprow">
@@ -585,20 +993,287 @@
     </div>
   </div>
 
+  <!-- ============ STAT INFO POPOVER / BOTTOM SHEET ============
+       Single shared component for the stats-strip trust signals.
+       Content is swapped per stat via JS (see openStatInfo below). -->
+  <div class="stat-info-overlay hide" id="statInfoOverlay" aria-hidden="true" onclick="if(event.target===this) closeStatInfo();">
+    <div class="stat-info-sheet is-sheet" id="statInfoSheet" role="dialog" aria-modal="true" aria-labelledby="statInfoTitle">
+      <div class="stat-info-handle" aria-hidden="true"></div>
+      <button type="button" class="stat-info-close" id="statInfoClose" aria-label="Close" onclick="closeStatInfo()">&times;</button>
+      <h4 class="stat-info-title" id="statInfoTitle"></h4>
+      <p class="stat-info-body" id="statInfoBody"></p>
+    </div>
+  </div>
+
 </div>
 
 <script>
   let lastFeed = 'hikes';
+  let currentQuery = '';
+  const SEARCH_INPUT_IDS = ['heroSearchInput', 'hikesSearchInput', 'racesSearchInput'];
+
+  // Clear the placeholder text the moment a search input is focused
+  // (cursor active = about to type), and restore it on blur (tapped
+  // or clicked away). The original placeholder is stashed on the
+  // element itself so it can be restored exactly.
+  function initSearchPlaceholders(){
+    SEARCH_INPUT_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.dataset.placeholderText = el.getAttribute('placeholder') || '';
+      el.addEventListener('focus', () => { el.setAttribute('placeholder', ''); });
+      el.addEventListener('blur', () => { el.setAttribute('placeholder', el.dataset.placeholderText); });
+    });
+  }
+
+  // Single source of truth for search: whatever is typed in any one of the
+  // three search inputs (hero, hikes, races) is mirrored to the others and
+  // re-applied to both feeds, so switching tabs never loses or resets it.
+  function handleSearch(value){
+    currentQuery = value;
+    syncSearchInputs();
+    applyFilters();
+  }
+
+  function syncSearchInputs(){
+    SEARCH_INPUT_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if(el && el.value !== currentQuery) el.value = currentQuery;
+    });
+    document.querySelectorAll('.search-clear').forEach(btn => {
+      btn.classList.toggle('hide', currentQuery.length === 0);
+    });
+  }
+
+  function clearSearch(){
+    currentQuery = '';
+    syncSearchInputs();
+    applyFilters();
+    const activeInput = document.getElementById(lastFeed + 'SearchInput');
+    if(activeInput) activeInput.focus();
+  }
+
+  function applyFilters(){
+    filterFeed('hikes');
+    filterFeed('races');
+  }
+
+  // Filters the direct children of a feed by text match. Date dividers are
+  // hidden if every card under them is filtered out, and a plain-language
+  // empty state appears when a feed has zero matches.
+  function filterFeed(screenName){
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if(!feed) return;
+
+    const q = currentQuery.trim().toLowerCase();
+    const children = Array.from(feed.children).filter(el => !el.classList.contains('empty-state'));
+    let openDivider = null;
+    let dividerHasMatch = false;
+    let anyMatch = false;
+
+    const closeDivider = () => {
+      if(openDivider) openDivider.classList.toggle('hide', !dividerHasMatch);
+    };
+
+    children.forEach(el => {
+      if(el.classList.contains('datedivider')){
+        closeDivider();
+        openDivider = el;
+        dividerHasMatch = false;
+        return;
+      }
+      if(el.classList.contains('card') || el.classList.contains('justannounced')){
+        const isMatch = !q || el.textContent.toLowerCase().includes(q);
+        el.classList.toggle('hide', !isMatch);
+        if(isMatch){
+          dividerHasMatch = true;
+          anyMatch = true;
+        }
+      }
+    });
+    closeDivider();
+
+    let empty = feed.querySelector('.empty-state');
+    if(!empty){
+      empty = document.createElement('div');
+      empty.className = 'empty-state hide';
+      feed.appendChild(empty);
+    }
+    if(q && !anyMatch){
+      empty.innerHTML = `No ${screenName} match “<span class="eq"></span>”.<br><button type="button" class="clearlink" onclick="clearSearch()">Clear search</button>`;
+      empty.querySelector('.eq').textContent = currentQuery.trim();
+      empty.classList.remove('hide');
+    } else {
+      empty.classList.add('hide');
+    }
+  }
 
   function showScreen(name){
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hide'));
     document.getElementById('screen-' + name).classList.remove('hide');
     if(name === 'hikes' || name === 'races') lastFeed = name;
+    syncSearchInputs();
   }
 
   function toggleCluster(e){
     e.currentTarget.classList.toggle('open');
   }
+
+  // ---- STAT INFO POPOVER / BOTTOM SHEET -----------------------
+  // One shared overlay+panel for the stats-strip trust signals.
+  // Mobile (<640px, matching the app shell's own breakpoint) gets
+  // a bottom sheet; desktop gets a small popover anchored to the
+  // icon that was clicked. Same breakpoint the app already uses
+  // for mobile-vs-framed-desktop layout, so the two never disagree.
+  const STAT_INFO = {
+    events: {
+      title: "What's included?",
+      body: "We list organized hikes, treks, trail races, and other outdoor events with confirmed schedules or registration details. Each listing is reviewed before it's added to the calendar."
+    },
+    sources: {
+      title: "Where do the events come from?",
+      body: "We gather event information from official organizer announcements and other publicly available sources. Our goal is to save you time by bringing upcoming outdoor events together in one place."
+    },
+    updated: {
+      title: "How often is the calendar updated?",
+      body: "We regularly review new announcements and community submissions before updating the calendar. If you notice an event that's missing, you can submit it for review."
+    }
+  };
+
+  let statInfoTrigger = null;
+
+  function isDesktopViewport(){
+    return window.matchMedia('(min-width: 640px)').matches;
+  }
+
+  function openStatInfo(key, triggerEl){
+    const data = STAT_INFO[key];
+    if(!data) return;
+    statInfoTrigger = triggerEl;
+
+    document.getElementById('statInfoTitle').textContent = data.title;
+    document.getElementById('statInfoBody').textContent = data.body;
+
+    const overlay = document.getElementById('statInfoOverlay');
+    const sheet = document.getElementById('statInfoSheet');
+
+    overlay.classList.remove('hide');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    if(isDesktopViewport()){
+      sheet.classList.remove('is-sheet');
+      sheet.classList.add('is-popover');
+      positionStatInfoPopover(triggerEl, sheet);
+    } else {
+      sheet.classList.remove('is-popover', 'flip-up');
+      sheet.classList.add('is-sheet');
+      // Clear any inline sizing left over from a previous desktop
+      // popover — the mobile bottom-sheet sizing lives in CSS
+      // (max-height: calc(100% - 28px)) and must not be overridden
+      // by a stale inline style, or content can get clipped.
+      sheet.style.left = '';
+      sheet.style.top = '';
+      sheet.style.width = '';
+      sheet.style.maxHeight = '';
+      sheet.style.removeProperty('--caret-left');
+    }
+
+    // Force reflow so the show transition actually runs.
+    void overlay.offsetWidth;
+    requestAnimationFrame(() => overlay.classList.add('show'));
+
+    document.addEventListener('keydown', handleStatInfoKeydown);
+    document.getElementById('statInfoClose').focus();
+  }
+
+  // Measures the sheet's real (content-driven) height at its target
+  // width, then places it below the trigger if it fits — or flips it
+  // above when there's more room there — always clamping max-height
+  // to whatever space is actually available so the sheet scrolls
+  // internally rather than being clipped by .app's overflow:hidden.
+  // Also clamps width itself to the app's own width, so this holds
+  // at any viewport size, not just the widths this was tested at.
+  function positionStatInfoPopover(triggerEl, sheet){
+    const appEl = document.querySelector('.app');
+    const appRect = appEl.getBoundingClientRect();
+    const trigRect = triggerEl.getBoundingClientRect();
+    const margin = 12;
+    const gap = 10;
+
+    const sheetWidth = Math.min(260, Math.max(160, appRect.width - margin * 2));
+    sheet.style.width = sheetWidth + 'px';
+    sheet.style.maxHeight = 'none';
+    sheet.classList.remove('flip-up');
+
+    // Natural content height at this width, before we place or cap it.
+    const naturalHeight = sheet.scrollHeight;
+
+    let left = (trigRect.left - appRect.left) + (trigRect.width / 2) - (sheetWidth / 2);
+    const maxLeft = Math.max(margin, appRect.width - sheetWidth - margin);
+    left = Math.max(margin, Math.min(left, maxLeft));
+
+    const spaceBelow = appRect.height - (trigRect.bottom - appRect.top) - gap - margin;
+    const spaceAbove = (trigRect.top - appRect.top) - gap - margin;
+
+    let top;
+    if(naturalHeight <= spaceBelow || spaceBelow >= spaceAbove){
+      // Fits below, or below still has more room than above — place below.
+      top = (trigRect.bottom - appRect.top) + gap;
+      const available = Math.max(80, spaceBelow);
+      sheet.style.maxHeight = Math.min(naturalHeight, available) + 'px';
+    } else {
+      // More room above than below — flip, clamp height to what's there.
+      sheet.classList.add('flip-up');
+      const available = Math.max(80, spaceAbove);
+      const usedHeight = Math.min(naturalHeight, available);
+      top = Math.max(margin, (trigRect.top - appRect.top) - gap - usedHeight);
+      sheet.style.maxHeight = usedHeight + 'px';
+    }
+
+    sheet.style.left = left + 'px';
+    sheet.style.top = top + 'px';
+
+    const caretLeft = (trigRect.left - appRect.left) + (trigRect.width / 2) - left;
+    sheet.style.setProperty('--caret-left', Math.max(14, Math.min(caretLeft, sheetWidth - 14)) + 'px');
+  }
+
+  function closeStatInfo(){
+    const overlay = document.getElementById('statInfoOverlay');
+    if(!overlay.classList.contains('show')) return;
+
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.removeEventListener('keydown', handleStatInfoKeydown);
+
+    setTimeout(() => {
+      if(!overlay.classList.contains('show')) overlay.classList.add('hide');
+    }, 280);
+
+    if(statInfoTrigger){
+      statInfoTrigger.focus();
+      statInfoTrigger = null;
+    }
+  }
+
+  // Minimal focus trap: the sheet has exactly one focusable element
+  // (the close button), so Tab/Shift+Tab simply keep focus there
+  // instead of escaping into the screen behind the overlay.
+  function handleStatInfoKeydown(e){
+    if(e.key === 'Escape'){
+      closeStatInfo();
+    } else if(e.key === 'Tab'){
+      e.preventDefault();
+      document.getElementById('statInfoClose').focus();
+    }
+  }
+
+  // Close on resize instead of leaving a stale mobile/desktop
+  // layout (e.g. rotating a tablet, or resizing a desktop window
+  // across the 640px breakpoint while the sheet is open).
+  window.addEventListener('resize', () => {
+    const overlay = document.getElementById('statInfoOverlay');
+    if(overlay && overlay.classList.contains('show')) closeStatInfo();
+  });
 
   function openDetail(type){
     setDetailMode(type);
@@ -636,8 +1311,35 @@
     }
   }
 
+  // The chip row and the app bar are both position:sticky at the top
+  // of their scroll container. Left alone, they'd both pin to the exact
+  // same y=0 and the chip row (later in the DOM) would climb up and
+  // cover the app bar — hiding the search bar. Instead, measure the
+  // app bar's real rendered height and use that as the chip row's
+  // sticky offset, so it docks directly beneath the app bar and the
+  // search bar stays visible and sticky at all scroll positions.
+  function syncStickyOffsets(){
+    document.querySelectorAll('.screen').forEach(screen => {
+      const appbar = screen.querySelector('.appbar');
+      const chiprow = screen.querySelector('.chiprow');
+      if(appbar && chiprow){
+        chiprow.style.top = appbar.offsetHeight + 'px';
+      }
+    });
+  }
+
+  window.addEventListener('resize', syncStickyOffsets);
+  window.addEventListener('load', syncStickyOffsets);
+  if('ResizeObserver' in window){
+    document.querySelectorAll('.appbar').forEach(appbar => {
+      new ResizeObserver(syncStickyOffsets).observe(appbar);
+    });
+  }
+
   // default state
   setDetailMode('hike');
+  initSearchPlaceholders();
+  syncStickyOffsets();
 </script>
 
 <script>
@@ -650,10 +1352,20 @@
      ============================================================ */
 
   // ---- CONFIG ------------------------------------------------
-  // Flip USE_LIVE_DATA to true once deployed and both URLs are
-  // confirmed working (paste a real CSV URL into a browser tab —
-  // you should see plain comma-separated text, not a Sheets page).
-  const USE_LIVE_DATA = false;
+  // CENTRAL SWITCH — toggle live vs. placeholder data with zero
+  // code edits: visit the site with ?live=true or ?live=false in
+  // the URL to override this default for that page load. No "?live="
+  // param falls back to the default below. This means switching
+  // data sources never requires editing or redeploying this file —
+  // just changing the URL you open.
+  //   Examples:
+  //   https://utc-2-0.vercel.app/?live=true   → forces live Sheet data
+  //   https://utc-2-0.vercel.app/?live=false  → forces placeholder data
+  const DEFAULT_USE_LIVE_DATA = false;
+  const _liveParam = new URLSearchParams(window.location.search).get('live');
+  const USE_LIVE_DATA = _liveParam === null
+    ? DEFAULT_USE_LIVE_DATA
+    : _liveParam === 'true';
 
   const HIKES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=574412184&single=true&output=csv";
   const RACES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=1609559383&single=true&output=csv";
@@ -778,6 +1490,82 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     return issues;
   }
 
+  // ---- WEEK PREVIEW (Sprint 5) ------------------------------------
+  // Renders a short list of upcoming events into the landing screen's
+  // "Featured Events" block. Reads from the live `events` array
+  // passed in from loadEvents() — never touches the data layer above.
+  function getWeekRange(today) {
+    // Monday-start week containing `today`.
+    const day = today.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day === 0) ? -6 : 1 - day;
+    const monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return [monday, sunday];
+  }
+
+  function formatShortDate(d) {
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  function renderWeekPreview(events) {
+    const listEl = document.getElementById('weekPreviewList');
+    if (!listEl) return;
+
+    const today = new Date();
+    const [weekStart, weekEnd] = getWeekRange(today);
+
+    const parsed = events
+      .filter(ev => ev.date)
+      .map(ev => ({ ...ev, _d: new Date(ev.date + 'T00:00:00') }))
+      .filter(ev => !isNaN(ev._d));
+
+    let picks = parsed
+      .filter(ev => ev._d >= weekStart && ev._d <= weekEnd)
+      .sort((a, b) => a._d - b._d);
+
+    // Fallback path: if nothing falls inside the current Mon–Sun
+    // window, show the next upcoming events instead of an empty
+    // block — keeps the preview useful regardless of what "today"
+    // happens to be relative to the placeholder data's fixed dates.
+    let usedFallback = false;
+    if (picks.length === 0) {
+      usedFallback = true;
+      picks = parsed
+        .filter(ev => ev._d >= today)
+        .sort((a, b) => a._d - b._d)
+        .slice(0, 3);
+    } else {
+      picks = picks.slice(0, 4);
+    }
+
+    if (picks.length === 0) {
+      listEl.innerHTML = `<div class="wp-empty">No upcoming events right now — check back soon.</div>`;
+      return;
+    }
+
+    const heading = document.querySelector('#weekPreview h2');
+    if (heading) {
+      heading.textContent = usedFallback ? 'Coming Up' : 'Featured Events';
+    }
+
+    listEl.innerHTML = picks.map(ev => {
+      const dotClass = ev.type === 'race' ? 'race' : 'hike';
+      const area = ev.area || '';
+      return `
+        <div class="wp-item">
+          <span class="wp-dot ${dotClass}"></span>
+          <div class="wp-body">
+            <p class="wp-title">${ev.title || 'Untitled event'}</p>
+            <p class="wp-meta">${formatShortDate(ev._d)}${area ? ' · ' + area : ''}</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
   // ---- RUN (Sprint 1: console-only, no UI wiring yet) -----------
   loadEvents()
     .then(events => {
@@ -795,9 +1583,15 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
       // Exposed globally so it can be inspected/reused from the
       // browser console or from Sprint 2's render layer.
       window.trailheadEvents = events;
+
+      renderWeekPreview(events);
     })
     .catch(err => {
       console.error("[Trailhead Cebu] Failed to load events:", err);
+      const listEl = document.getElementById('weekPreviewList');
+      if (listEl) {
+        listEl.innerHTML = `<div class="wp-empty">Couldn't load featured events.</div>`;
+      }
     });
 </script>
 
