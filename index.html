@@ -85,12 +85,24 @@
     background:var(--paper);
     position:relative;
     overflow:hidden;
+    isolation:isolate;
   }
   .screen{
     position:absolute; inset:0;
     display:flex; flex-direction:column;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
+    /* Own compositing layer at all times, not just mid-transition — on
+       iOS Safari, promoting an element to its own layer only when a
+       transform animation starts is too late: if the element still has
+       momentum-scroll in flight from the tap that triggered navigation,
+       WebKit can paint the transform on a stale rasterization of that
+       layer, leaving a "ghost" of the old screen visible over the new
+       one until the next repaint. Keeping the layer permanently
+       promoted avoids that repaint race. */
+    transform:translateZ(0);
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
   }
   .screen::-webkit-scrollbar{width:0;}
 
@@ -111,6 +123,18 @@
   .screen.nav-pop-exit{ transform:translateX(0); }
   .screen.nav-pop-enter.nav-anim{ transform:translateX(0); opacity:1; }
   .screen.nav-pop-exit.nav-anim{ transform:translateX(100%); }
+  /* A `transform` on an ancestor — even the harmless translateX(0) resting
+     state above — makes that ancestor a new containing block, which
+     breaks how position:sticky recalculates underneath it. .appbar and
+     .chiprow are sticky, so for the ~320ms a screen carries one of the
+     transform classes above, drop them to static. Sticky resumes the
+     instant the transient class is removed after the transition ends. */
+  .screen.nav-push-enter .appbar, .screen.nav-push-exit .appbar,
+  .screen.nav-pop-enter .appbar, .screen.nav-pop-exit .appbar,
+  .screen.nav-push-enter .chiprow, .screen.nav-push-exit .chiprow,
+  .screen.nav-pop-enter .chiprow, .screen.nav-pop-exit .chiprow{
+    position:static;
+  }
 
   @media (min-width:640px){
     body{ padding:40px 20px; align-items:flex-start; }
@@ -859,7 +883,7 @@
   <!-- ===================== HIKES FEED ===================== -->
   <div class="screen hide" id="screen-hikes">
     <div class="appbar">
-      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
+      <button class="wordmark" type="button" onclick="goBack()" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes active" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races" onclick="showScreen('races')">Races</div>
@@ -959,7 +983,7 @@
   <!-- ===================== RACES FEED ===================== -->
   <div class="screen hide" id="screen-races">
     <div class="appbar">
-      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
+      <button class="wordmark" type="button" onclick="goBack()" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races active" onclick="showScreen('races')">Races</div>
@@ -1041,7 +1065,7 @@
   <!-- ===================== EVENT DETAIL ===================== -->
   <div class="screen hide" id="screen-detail">
     <div class="detail-hero">
-      <button class="backbtn" onclick="showScreen(lastFeed, 'pop')">← Back to list</button>
+      <button class="backbtn" id="detailBackBtn" onclick="goBack()">← Back to list</button>
       <p class="detail-title" id="detTitle">Mt. Manunggal Trail</p>
       <p class="detail-sub" id="detSub">Balamban, Cebu · Sat, Jul 4</p>
     </div>
@@ -1123,6 +1147,38 @@
   let lastFeed = 'hikes';
   let currentQuery = '';
   const SEARCH_INPUT_IDS = ['heroSearchInput', 'hikesSearchInput', 'racesSearchInput'];
+
+  // ---------- back-button / history integration ----------
+  // Maps each screen to a "depth". landing is the root; hikes/races sit
+  // one level in (siblings of each other — switching between them is a
+  // lateral move, not a deeper one); detail sits one level deeper still.
+  // We push a real history entry whenever depth increases, so the
+  // phone's hardware/gesture back button (which fires a native
+  // `popstate`) naturally lands on the previous layer instead of
+  // leaving the page entirely.
+  const SCREEN_DEPTH = { landing:0, hikes:1, races:1, detail:2 };
+  let currentDepth = 0;
+  let currentDetailType = 'hike';
+
+  // The phone's hardware back button only reaches us via a real
+  // browser `popstate`, which needs `history.pushState` to have
+  // actually succeeded. In some embedded/sandboxed preview contexts
+  // (opaque/null document origin) pushState throws instead — silently,
+  // if nothing catches it — so the "forward" taps still animate fine
+  // (that happens before the history call) but nothing ever lands on
+  // the stack for back to return to. To make the in-app back controls
+  // work everywhere regardless, we keep our own plain-array stack as
+  // the source of truth, and treat the browser History API as a
+  // best-effort add-on layered on top of it (wrapped so a failure
+  // there can never break navigation itself).
+  const navStack = [{ screen:'landing', depth:0 }];
+  let historyAvailable = true;
+  let suppressNextPopstate = false;
+  try{
+    history.replaceState(navStack[0], '');
+  } catch(err){
+    historyAvailable = false;
+  }
 
   // Clear the placeholder text the moment a search input is focused
   // (cursor active = about to type), and restore it on blur (tapped
@@ -1220,13 +1276,26 @@
     }
   }
 
-  function showScreen(name, transition){
+  function showScreen(name, transition, historyMode){
     const nextEl = document.getElementById('screen-' + name);
     const prevEl = document.querySelector('.screen:not(.hide)');
 
     if(transition && prevEl && prevEl !== nextEl){
       const enterClass = transition === 'push' ? 'nav-push-enter' : 'nav-pop-enter';
       const exitClass = transition === 'push' ? 'nav-push-exit' : 'nav-pop-exit';
+      // If the tap that triggered this came right after (or during) a
+      // finger-drag scroll, iOS Safari may still have momentum-scroll
+      // in flight on prevEl. Animating a transform on it while that's
+      // still settling is what produces the "old screen ghosted over
+      // the new one" glitch. Locking overflow for the animation's
+      // duration stops that momentum outright; -webkit-overflow-scrolling
+      // is also dropped to 'auto' so WebKit can't keep the old touch
+      // scrolling layer around mid-transition.
+      [nextEl, prevEl].forEach(el => {
+        el.style.overflowY = 'hidden';
+        el.style.webkitOverflowScrolling = 'auto';
+      });
+      nextEl.scrollTop = 0;
       nextEl.classList.remove('hide');
       nextEl.style.zIndex = transition === 'push' ? '2' : '1';
       prevEl.style.zIndex = transition === 'push' ? '1' : '2';
@@ -1242,6 +1311,8 @@
         [nextEl, prevEl].forEach(el => {
           el.classList.remove('nav-push-enter', 'nav-push-exit', 'nav-pop-enter', 'nav-pop-exit', 'nav-anim');
           el.style.zIndex = '';
+          el.style.overflowY = '';
+          el.style.webkitOverflowScrolling = '';
         });
         nextEl.removeEventListener('transitionend', onDone);
       };
@@ -1252,11 +1323,85 @@
     }
 
     if(name === 'hikes' || name === 'races') lastFeed = name;
+
+    // historyMode 'none' means this call is a *reaction* to a popstate
+    // event or an internal goBack() (the stack is already correct) —
+    // we must not push/replace again or we'd create a duplicate/broken
+    // stack entry.
+    if(historyMode !== 'none'){
+      const newDepth = SCREEN_DEPTH[name];
+      const state = { screen:name, depth:newDepth };
+      if(name === 'detail'){ state.mode = currentDetailType; state.feed = lastFeed; }
+      if(newDepth > currentDepth){
+        navStack.push(state);
+        if(historyAvailable){
+          try{ history.pushState(state, ''); } catch(err){ historyAvailable = false; }
+        }
+      } else {
+        navStack[navStack.length - 1] = state;
+        if(historyAvailable){
+          try{ history.replaceState(state, ''); } catch(err){ historyAvailable = false; }
+        }
+      }
+      currentDepth = newDepth;
+    }
+
     syncSearchInputs();
     // the just-shown screen's chiprow was scrollWidth:0 while hidden —
     // recheck now that it's actually laid out
     requestAnimationFrame(updateAllChipRowFades);
   }
+
+  // Used by in-app "back" controls (the detail screen's "← Back to
+  // list" button, the wordmark on the feed screens) so a tap there and
+  // a phone's hardware back button behave identically wherever the
+  // hardware button is actually reachable. This always resolves against
+  // our own navStack first — that's what makes it work even in contexts
+  // where the browser History API is unavailable or blocked — and only
+  // additionally calls the real history.back() (best-effort) so a
+  // working hardware/gesture back button stays in sync rather than
+  // popping a second, stale entry on its next press.
+  function goBack(){
+    if(navStack.length <= 1) return;
+    navStack.pop();
+    const prevState = navStack[navStack.length - 1];
+    if(prevState.screen === 'detail'){
+      setDetailMode(prevState.mode || 'hike');
+      if(prevState.feed) lastFeed = prevState.feed;
+    }
+    showScreen(prevState.screen, 'pop', 'none');
+    currentDepth = prevState.depth;
+    if(historyAvailable){
+      // We already popped navStack and rendered the result ourselves
+      // above; history.back() is only called so a *working* hardware
+      // back button stays pointed at the right spot for its next
+      // press. Without suppressing it, the popstate this triggers
+      // would run our popstate handler too and pop navStack a second
+      // time for a single button tap.
+      suppressNextPopstate = true;
+      try{ history.back(); } catch(err){ historyAvailable = false; suppressNextPopstate = false; }
+    }
+  }
+
+  window.addEventListener('popstate', (e) => {
+    if(suppressNextPopstate){
+      suppressNextPopstate = false;
+      return;
+    }
+    // A real hardware/gesture back (or forward) just happened. Resolve
+    // it against navStack rather than trusting e.state blindly, so our
+    // internal stack and the visible screen never disagree.
+    if(navStack.length <= 1) return;
+    navStack.pop();
+    const prevState = navStack[navStack.length - 1];
+    const transition = prevState.depth < currentDepth ? 'pop' : (prevState.depth > currentDepth ? 'push' : null);
+    if(prevState.screen === 'detail'){
+      setDetailMode(prevState.mode || 'hike');
+      if(prevState.feed) lastFeed = prevState.feed;
+    }
+    showScreen(prevState.screen, transition, 'none');
+    currentDepth = prevState.depth;
+  });
 
   function toggleCluster(e){
     e.currentTarget.classList.toggle('open');
@@ -1424,7 +1569,10 @@
   }
 
   function setDetailMode(type){
+    currentDetailType = type;
     const isHike = type === 'hike';
+    const backBtn = document.getElementById('detailBackBtn');
+    if(backBtn) backBtn.textContent = isHike ? '← Back to Hikes list' : '← Back to Races list';
     document.getElementById('hikeContent').classList.toggle('hide', !isHike);
     document.getElementById('raceContent').classList.toggle('hide', isHike);
     document.getElementById('screen-detail').classList.toggle('mode-hike', isHike);
@@ -1504,10 +1652,58 @@
     });
   }
 
+  // ---- SWIPE NAV: hikes <-> races -----------------------------
+  // Hikes screen: swipe right-to-left (finger travels leftward) -> races.
+  // Races screen: swipe left-to-right (finger travels rightward) -> hikes.
+  // Only fires from those two screens, not landing/detail. Ignores
+  // touches that start inside .chiprow since that row scrolls
+  // horizontally on its own and would otherwise fight this gesture.
+  function initSwipeNav(){
+    const SWIPE_MIN_X = 60;   // minimum horizontal travel to count as a swipe
+    const SWIPE_MAX_Y = 75;   // vertical drift allowed before we treat it as a scroll instead
+    const SWIPE_MAX_MS = 700; // gesture must complete within this window
+    let startX = 0, startY = 0, startT = 0, tracking = false;
+
+    function onTouchStart(e){
+      if(e.touches.length !== 1){ tracking = false; return; }
+      if(e.target.closest('.chiprow')){ tracking = false; return; }
+      const activeScreen = document.querySelector('.screen:not(.hide)');
+      if(!activeScreen || (activeScreen.id !== 'screen-hikes' && activeScreen.id !== 'screen-races')){
+        tracking = false; return;
+      }
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY; startT = Date.now();
+      tracking = true;
+    }
+    function onTouchEnd(e){
+      if(!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const dt = Date.now() - startT;
+      if(dt > SWIPE_MAX_MS || Math.abs(dx) < SWIPE_MIN_X || Math.abs(dy) > SWIPE_MAX_Y) return;
+      const activeScreen = document.querySelector('.screen:not(.hide)');
+      if(!activeScreen) return;
+      if(activeScreen.id === 'screen-hikes' && dx < 0){
+        showScreen('races', 'push');
+      } else if(activeScreen.id === 'screen-races' && dx > 0){
+        showScreen('hikes', 'pop');
+      }
+    }
+    function onTouchCancel(){ tracking = false; }
+
+    const app = document.querySelector('.app');
+    app.addEventListener('touchstart', onTouchStart, { passive:true });
+    app.addEventListener('touchend', onTouchEnd, { passive:true });
+    app.addEventListener('touchcancel', onTouchCancel, { passive:true });
+  }
+
   // default state
   setDetailMode('hike');
   initSearchPlaceholders();
   initChipRowFades();
+  initSwipeNav();
   syncStickyOffsets();
   updateAllChipRowFades();
 </script>
