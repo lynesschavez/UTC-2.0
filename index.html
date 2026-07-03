@@ -2,25 +2,43 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Trailhead Cebu — Trail &amp; Hike Finder</title>
-<meta name="description" content="One list for every Cebu trail race and hike. Built for runners and hikers tired of digging through Facebook groups.">
+<title>Philippine Trail Running and Hiking Calendar 2026</title>
+<meta name="description" content="The most complete calendar of trail races and hike schedules in the Philippines, updated regularly, with an invitation to find your next adventure.">
+<meta property="og:title" content="Philippine Trail Running and Hiking Calendar 2026">
+<meta property="og:description" content="Finding your next trail race or hike in the Philippines just got easier, with races, hike schedules, and events from across the islands gathered in one place.">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NzQuODIgNTU2LjU3Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2ZmZjt9PC9zdHlsZT48L2RlZnM+PHBvbHlnb24gcG9pbnRzPSIzOTUuNjUgMCAzMTguNDYgNzcuMTkgMjU5LjU4IDE4LjE1IDAgMjc3LjcyIDI3OS4wNiA1NTYuNTcgMzU2LjI0IDQ3OS4zOSA0MTUuMTIgNTM4LjQzIDY3NC44MiAyNzguNzMgMzk1LjY1IDAiLz48cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iMzk1LjY1IDEwNC4xMyA1MTYuMDggMjI0LjU2IDU5MS42NiAyMjQuNTYgMzk1LjY1IDI4LjU2IDMzNy4wNSA4Ny4xNiAzNzQuODMgMTI0Ljk0IDM5NS42NSAxMDQuMTMiLz48cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iMjc5LjA2IDQ1Mi40NCAxNTguNjIgMzMyLjAyIDgzLjA0IDMzMi4wMiAyNzkuMDYgNTI4LjAxIDMzNy42NSA0NjkuNDIgMjk5Ljg3IDQzMS42MyAyNzkuMDYgNDUyLjQ0Ii8+PHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjYxOS42MyAyNTEuODEgNjE5LjEgMjUxLjI4IDEzMC41NCAyNTEuMzIgMjU5LjMyIDEyMi41NCAzNjEuMzQgMjI0LjU2IDQzNi45MiAyMjQuNTYgMjU5LjU2IDQ2LjczIDI4LjM1IDI3Ny45NSA1NS42IDMwNS4yOSA1NDQuMTYgMzA1LjI1IDQxNS4zOCA0MzQuMDMgMzEzLjM3IDMzMi4wMiAyMzcuNzggMzMyLjAyIDQxNS4xNCA1MDkuODQgNjQ2LjM2IDI3OC42MiA2MTkuNjMgMjUxLjgxIi8+PC9zdmc+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --canopy:#16241C;
     --canopy-2:#1F3327;
-    --mist:#F2EEE2;
-    --paper:#FBF9F2;
+    --mist:#E4EEE7;
+    --paper:#F3F8F4;
     --moss:#5C6E54;
-    --moss-line:#D8D2BE;
+    --moss-line:#C6D6C8;
+    /* warm counterparts to --mist/--moss-line, same lightness/chroma,
+       hue rotated to match --flag-orange — used only inside the races
+       screen so its neutral fills/borders/dividers read warm too,
+       instead of inheriting the green-mint neutrals built for hikes. */
+    --mist-warm: oklch(93% 0.02 55);
+    --moss-line-warm: oklch(84% 0.03 50);
+    --mist-warm-on-dark: oklch(93% 0.02 55);
+    --moss-warm: oklch(45% 0.05 50);
     --char:#262420;
     --char-soft:#5b5750;
     --flag-orange:#F2611B;
+    --flag-orange-2:#C8460D;
     --flag-orange-dim:#FBE2D2;
     --dawn-blue:#235E78;
+    --dawn-blue-2:#17404F;
     --dawn-blue-dim:#D9E7EC;
+    /* gradients ported from the redesign — both stops stay in the same
+       hue family and deepen (rather than lighten) so white text on top
+       keeps contrast at or above the flat color's baseline. */
+    --sunrise-grad: linear-gradient(135deg, var(--flag-orange) 0%, var(--flag-orange-2) 100%);
+    --dusk-grad: linear-gradient(135deg, var(--dawn-blue) 0%, var(--dawn-blue-2) 100%);
     --display: 'Oswald', sans-serif;
     --body: 'IBM Plex Sans', sans-serif;
     --mono: 'IBM Plex Mono', monospace;
@@ -29,6 +47,18 @@
     --app-max-width: 480px;
   }
   *{box-sizing:border-box;}
+  /* Global accessibility guard — collapses every transition/animation in
+     this file to near-zero duration for anyone with reduced-motion set,
+     rather than handling it per-component. State still changes, it just
+     doesn't animate. */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:0.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:0.01ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
   html, body{ height:100%; }
   body{
     margin:0;
@@ -63,6 +93,24 @@
     -webkit-overflow-scrolling:touch;
   }
   .screen::-webkit-scrollbar{width:0;}
+
+  /* ---------- push/pop navigation (feed <-> detail) ----------
+     Drilling into an event and backing out is a hierarchy change, not a
+     lateral tab switch — a slide reinforces that relationship on both
+     touch and pointer input, so it isn't platform-gated like the hover
+     lift above. Tab switches (Hikes/Races/landing) stay instant. */
+  .screen.nav-push-enter, .screen.nav-push-exit,
+  .screen.nav-pop-enter, .screen.nav-pop-exit{
+    transition:transform .32s cubic-bezier(.25,1,.5,1), opacity .32s cubic-bezier(.25,1,.5,1);
+  }
+  .screen.nav-push-enter{ transform:translateX(100%); }
+  .screen.nav-push-exit{ transform:translateX(0); opacity:1; }
+  .screen.nav-push-enter.nav-anim{ transform:translateX(0); }
+  .screen.nav-push-exit.nav-anim{ transform:translateX(-20%); opacity:.6; }
+  .screen.nav-pop-enter{ transform:translateX(-20%); opacity:.6; }
+  .screen.nav-pop-exit{ transform:translateX(0); }
+  .screen.nav-pop-enter.nav-anim{ transform:translateX(0); opacity:1; }
+  .screen.nav-pop-exit.nav-anim{ transform:translateX(100%); }
 
   @media (min-width:640px){
     body{ padding:40px 20px; align-items:flex-start; }
@@ -121,8 +169,8 @@
     color:#D8DFD2;
     cursor:pointer;
   }
-  .mode-tab.is-hikes.active{ background:var(--flag-orange); border-color:var(--flag-orange); color:#fff; }
-  .mode-tab.is-races.active{ background:var(--dawn-blue); border-color:var(--dawn-blue); color:#fff; }
+  .mode-tab.is-hikes.active{ background:var(--dawn-blue); border-color:var(--dawn-blue); color:#fff; }
+  .mode-tab.is-races.active{ background:var(--flag-orange); border-color:var(--flag-orange); color:#fff; }
 
   /* ---------- filter chip row ---------- */
   .chiprow{
@@ -140,8 +188,20 @@
     color:var(--char-soft);
     background:#fff;
   }
-  .chip.active.hikes{ background:var(--flag-orange-dim); border-color:var(--flag-orange); color:#9A3A0B; }
-  .chip.active.races{ background:var(--dawn-blue-dim); border-color:var(--dawn-blue); color:#1B4456; }
+  .chip.active.hikes{ background:var(--dawn-blue-dim); border-color:var(--dawn-blue); color:#1B4456; }
+  .chip.active.races{ background:var(--flag-orange-dim); border-color:var(--flag-orange); color:#9A3A0B; }
+  /* Edge fades signal "more chips off-screen" without adding an icon or
+     color — just a soft dissolve into the row's own background. JS
+     toggles .show based on actual scroll position, so a fade never
+     appears on an edge with nothing left to scroll to. */
+  .chiprow .scroll-fade{
+    position:absolute; top:0; bottom:0; width:28px;
+    pointer-events:none; opacity:0;
+    transition:opacity .3s cubic-bezier(.25,1,.5,1);
+  }
+  .chiprow .scroll-fade.left{ left:0; background:linear-gradient(to right, var(--paper), transparent); }
+  .chiprow .scroll-fade.right{ right:0; background:linear-gradient(to left, var(--paper), transparent); }
+  .chiprow .scroll-fade.show{ opacity:1; }
 
   .feed{ padding:6px 14px 30px; }
 
@@ -168,8 +228,19 @@
     margin-bottom:10px;
     cursor:pointer;
     position:relative;
+    transition:transform .12s cubic-bezier(.25,1,.5,1), box-shadow .12s cubic-bezier(.25,1,.5,1);
   }
   .card:active{ transform:scale(.99); }
+  /* Hover lift is gated to devices that actually have hover + a precise
+     pointer (mouse/trackpad) — this previews "clickable" before the
+     click, which only makes sense where there's a cursor to preview
+     with. Touch gets :active feedback instead (above), never this. */
+  @media (hover:hover) and (pointer:fine){
+    .card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 10px 22px -12px oklch(24% 0.03 150 / 0.28);
+    }
+  }
   .card-top{ display:flex; justify-content:space-between; gap:10px; }
   .card-title{
     font-family:var(--display);
@@ -195,37 +266,53 @@
     background:var(--mist);
     color:var(--char-soft);
   }
-  .tag.urgent{ background:var(--flag-orange); color:#fff; }
-  .tag.far{ background:var(--dawn-blue); color:#fff; }
-  .tag.outside{ background:#3a3530; color:#F2EEE2; }
+  .tag.urgent{ background:var(--sunrise-grad); color:#fff; }
+  .tag.far{ background:var(--dusk-grad); color:#fff; }
+  .tag.outside{ background:#3a3530; color:#E4EEE7; }
+  /* Color-association fix: every tag inside the Hikes screen should read
+     cool (blue), every tag inside the Races screen should read warm
+     (orange), regardless of which base class (.urgent/.far) it carries —
+     so glancing at tag color alone tells you which tab you're in. */
+  #screen-hikes .tag.urgent{ background:var(--dusk-grad); }
+  #screen-races .tag.far{ background:var(--sunrise-grad); }
+  /* The plain (non-status) tag/chip/card neutrals — background:var(--mist),
+     border/divider:var(--moss-line) — are green-mint (cool) everywhere by
+     default. That's correct for hikes but leaks into races wherever a tag
+     or chip isn't in an .urgent/.far/.active state. Swap those specific
+     instances to the warm counterparts only inside #screen-races. */
+  #screen-races .tag:not(.urgent):not(.far):not(.outside){ background:var(--mist-warm); }
+  #screen-races .tag.outside{ color:var(--mist-warm-on-dark); }
+  #screen-races .chip{ border-color:var(--moss-line-warm); }
+  #screen-races .card{ border-color:var(--moss-line-warm); }
+  #screen-races .datedivider .line{ background:var(--moss-line-warm); }
 
   /* ---------- dense-day cluster card ---------- */
   .cluster{
-    background:var(--flag-orange-dim);
-    border:1px dashed var(--flag-orange);
+    background:var(--dawn-blue-dim);
+    border:1px dashed var(--dawn-blue);
   }
-  .cluster .card-title{ color:#9A3A0B; }
+  .cluster .card-title{ color:#1B4456; }
   .stack{ display:flex; margin:10px 0 8px; }
   .stack .av{
     width:26px; height:26px; border-radius:50%;
-    background:#fff; border:2px solid var(--flag-orange-dim);
-    color:#9A3A0B; font-family:var(--mono); font-size:10px; font-weight:600;
+    background:#fff; border:2px solid var(--dawn-blue-dim);
+    color:#1B4456; font-family:var(--mono); font-size:10px; font-weight:600;
     display:flex; align-items:center; justify-content:center;
     margin-left:-8px;
   }
   .stack .av:first-child{ margin-left:0; }
-  .stack .more{ background:var(--flag-orange); color:#fff; border-color:var(--flag-orange); }
-  .cluster-list{ display:none; flex-direction:column; gap:7px; margin-top:8px; border-top:1px dashed var(--flag-orange); padding-top:8px; }
+  .stack .more{ background:var(--dusk-grad); color:#fff; border-color:var(--dawn-blue); }
+  .cluster-list{ display:none; flex-direction:column; gap:7px; margin-top:8px; border-top:1px dashed var(--dawn-blue); padding-top:8px; }
   .cluster.open .cluster-list{ display:flex; }
   .cluster.open .chevron{ transform:rotate(180deg); }
-  .mini-org{ display:flex; justify-content:space-between; font-size:12.5px; color:#5b3a26; }
+  .mini-org{ display:flex; justify-content:space-between; font-size:12.5px; color:#123240; }
   .mini-org b{ font-weight:600; }
-  .expand-row{ display:flex; align-items:center; justify-content:space-between; font-family:var(--mono); font-size:11.5px; color:#9A3A0B; margin-top:2px;}
+  .expand-row{ display:flex; align-items:center; justify-content:space-between; font-family:var(--mono); font-size:11.5px; color:#1B4456; margin-top:2px;}
   .chevron{ transition: transform .2s; }
 
   /* ---------- highlight strip (race feed) ---------- */
   .justannounced{
-    background:var(--dawn-blue);
+    background:var(--sunrise-grad);
     color:#fff; border-radius:14px; padding:13px 14px; margin-bottom:14px;
   }
   .justannounced .label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; opacity:.85; }
@@ -309,26 +396,32 @@
   }
   .panels{ padding:18px 16px; display:flex; flex-direction:column; gap:12px; flex:1; }
   .stats-strip{
-    display:flex; gap:10px;
+    display:flex; gap:0;
     margin:0 16px 14px;
+    border-top:1px solid var(--moss-line);
+    border-bottom:1px solid var(--moss-line);
+    /* flat, bounded row instead of three filled "nested card" boxes —
+       grouping comes from the top/bottom rule + dividers, not a fill */
   }
   .stats-strip .scol{
     flex:1;
-    background:var(--mist);
-    border-radius:12px;
-    padding:12px 8px;
+    background:transparent;
+    border-radius:0;
+    padding:14px 8px;
     text-align:center;
     display:flex; flex-direction:column; align-items:center; gap:5px;
-    border:1px solid transparent;
+    border:none;
+    border-left:1px solid var(--moss-line);
     font:inherit;
     color:inherit;
     cursor:pointer;
     -webkit-tap-highlight-color:transparent;
-    transition:background .15s ease;
+    transition:opacity .2s cubic-bezier(.25,1,.5,1);
   }
-  .stats-strip .scol:hover{ background:#ECE7D8; }
-  .stats-strip .scol:focus-visible{ outline:2px solid var(--dawn-blue); outline-offset:2px; }
-  .stats-strip .scol:active{ transform:scale(.98); }
+  .stats-strip .scol:first-child{ border-left:none; }
+  .stats-strip .scol:hover{ opacity:.6; }
+  .stats-strip .scol:focus-visible{ outline:2px solid var(--moss); outline-offset:-2px; }
+  .stats-strip .scol:active{ opacity:.45; }
   .stats-strip .scol svg{ color:var(--moss); }
   .stats-strip .snum{
     font-family:var(--display); font-weight:600; font-size:17px; color:var(--char);
@@ -342,13 +435,24 @@
 
   /* ---------- stat info popover / bottom sheet ----------
      One shared overlay + panel, content swapped per stat via JS.
-     Positioned absolute within .app so it's confined to the phone
-     frame on desktop and full-bleeds naturally on mobile, same as
-     every .screen. Mobile gets a bottom sheet (touch-friendly, no
-     hover dependency); desktop gets a small anchored popover next
-     to the icon that was tapped/clicked. */
+     Mobile gets a bottom sheet (touch-friendly, no hover dependency);
+     desktop gets a small anchored popover next to the icon that was
+     tapped/clicked.
+
+     Mobile overlay is position:fixed to the real browser viewport,
+     not position:absolute within .app. Mobile browsers' address bar
+     shows/hides as the page scrolls, so `.app`'s `min-height:100vh`
+     can be taller than what's actually visible on screen at any given
+     moment — an absolutely-positioned bottom sheet anchored to that
+     inflated box gets partly pushed below the visible fold, which is
+     the "severely clipped" bug this fixes. `position:fixed` with
+     top/bottom:0 tracks the true visible viewport as the address bar
+     animates, so the sheet always sits flush with the real bottom of
+     the screen. Desktop switches back to position:absolute so the
+     popover stays confined to the framed .app card, matching every
+     other overlay in the app. */
   .stat-info-overlay{
-    position:absolute; inset:0;
+    position:fixed; inset:0;
     z-index:50;
     background:rgba(22,20,15,0);
     opacity:0;
@@ -404,7 +508,7 @@
     max-height:calc(100% - 28px);
     border-radius:20px 20px 0 0;
     padding:14px 20px max(20px, env(safe-area-inset-bottom, 20px));
-    box-shadow:0 -12px 30px -10px rgba(0,0,0,0.4);
+    box-shadow:0 -12px 30px -10px rgba(22,36,28,0.4);
     transform:translateY(100%);
     transition:transform .28s cubic-bezier(.32,.72,0,1);
   }
@@ -417,11 +521,14 @@
      always clamping max-height to whatever space is actually available
      so content scrolls internally rather than getting clipped. */
   @media (min-width:640px){
+    .stat-info-overlay{
+      position:absolute; /* scoped to the framed .app card, not the full window */
+    }
     .stat-info-sheet.is-popover{
       width:260px;
       border-radius:14px;
       padding:16px 18px;
-      box-shadow:0 16px 34px -12px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
+      box-shadow:0 16px 34px -12px rgba(22,36,28,0.35), 0 0 0 1px rgba(22,36,28,0.05);
       transform:translateY(-6px);
       opacity:0;
       transition:opacity .18s ease, transform .18s ease;
@@ -436,7 +543,7 @@
       transform:translateX(-50%) rotate(45deg);
       width:12px; height:12px;
       background:var(--paper);
-      box-shadow:-2px -2px 4px -2px rgba(0,0,0,0.06);
+      box-shadow:-2px -2px 4px -2px rgba(22,36,28,0.06);
     }
     /* flipped above the trigger: caret moves to the bottom edge and
        points down instead of up */
@@ -444,7 +551,7 @@
     .stat-info-overlay.show .stat-info-sheet.is-popover.flip-up{ transform:translateY(0); }
     .stat-info-sheet.is-popover.flip-up::before{
       top:auto; bottom:-6px;
-      box-shadow:3px 3px 4px -2px rgba(0,0,0,0.06);
+      box-shadow:3px 3px 4px -2px rgba(22,36,28,0.06);
     }
   }
   .panel{
@@ -458,8 +565,8 @@
     justify-content:space-between;
     gap:12px;
   }
-  .panel.hikes{ background:var(--flag-orange); color:#fff; }
-  .panel.races{ background:var(--dawn-blue); color:#fff; }
+  .panel.hikes{ background:var(--dusk-grad); color:#fff; }
+  .panel.races{ background:var(--sunrise-grad); color:#fff; }
   .panel-content{ position:relative; z-index:1; flex:1; padding-right:36px; }
   .panel .ptitle{ font-family:var(--display); font-size:20px; font-weight:600; margin:0 0 4px; }
   .panel .psub{ font-family:var(--body); font-size:12.5px; opacity:.92; margin:0 0 10px; max-width:80%; }
@@ -551,9 +658,9 @@
   .wp-item:last-child{ margin-bottom:0; }
   .wp-dot{
     width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    background:var(--moss); /* neutral — landing previews both hikes and
+      races, so this shouldn't borrow either tab's accent color */
   }
-  .wp-dot.hike{ background:var(--flag-orange); }
-  .wp-dot.race{ background:var(--dawn-blue); }
   .wp-body{ flex:1; min-width:0; }
   .wp-title{
     font-family:var(--body); font-weight:600; font-size:13px; color:var(--char);
@@ -579,7 +686,8 @@
     margin:0 16px 14px;
     border:1.5px dashed var(--moss-line);
     border-radius:14px;
-    background:var(--mist);
+    background:transparent; /* was var(--mist) — dropped the fill so this
+      reads as a dashed callout, not a nested card with a cool tint */
     padding:14px 16px;
     display:flex; align-items:center; justify-content:space-between; gap:14px;
   }
@@ -589,7 +697,8 @@
   .callout-text p:first-child{ font-weight:500; color:var(--char); }
   .callout-cta{
     flex-shrink:0; display:flex; align-items:center; gap:7px;
-    background:var(--canopy); color:#fff;
+    background:var(--canopy); color:#fff; /* solid, matches the header/appbar —
+      neutral so the landing page's shared CTA doesn't read as hikes or races */
     font-family:var(--body); font-weight:600; font-size:13px;
     padding:11px 16px; border-radius:999px;
     text-decoration:none; white-space:nowrap;
@@ -602,15 +711,6 @@
     font-family:var(--mono); font-size:12px; color:#B7C2AF;
     background:none; border:none; padding:0 0 12px; cursor:pointer;
   }
-  .segctl{
-    display:flex; background:rgba(255,255,255,0.08); border-radius:10px; padding:3px; margin-bottom:14px;
-  }
-  .segbtn{
-    flex:1; text-align:center; font-family:var(--body); font-size:12.5px; font-weight:600;
-    padding:7px; border-radius:8px; color:#C9D2C2; background:none; border:none; cursor:pointer;
-  }
-  .segbtn.active.hike{ background:var(--flag-orange); color:#fff; }
-  .segbtn.active.race{ background:var(--dawn-blue); color:#fff; }
   .detail-title{ font-family:var(--display); font-size:21px; font-weight:600; margin:0 0 4px; padding-bottom:14px;}
   .detail-sub{ font-family:var(--mono); font-size:11.5px; color:#A9B7A1; }
 
@@ -640,9 +740,21 @@
     flex:1; text-align:center; padding:13px; border-radius:10px; font-family:var(--body); font-weight:600; font-size:13.5px;
     border:none; cursor:pointer;
   }
-  .cta.primary.hike{ background:var(--flag-orange); color:#fff; }
-  .cta.primary.race{ background:var(--dawn-blue); color:#fff; }
+  .cta.primary.hike{ background:var(--dusk-grad); color:#fff; box-shadow:0 6px 14px -6px rgba(35,94,120,0.5); }
+  .cta.primary.race{ background:var(--sunrise-grad); color:#fff; box-shadow:0 6px 14px -6px rgba(242,97,27,0.5); }
   .cta.secondary{ background:var(--mist); color:var(--char); }
+
+  /* The event-detail screen is shared between hikes and races, and its
+     .stat/.section-h3/.infoline/.distrow/.note/.cta.secondary neutrals
+     default to the cool mist/moss tones built for hikes. #screen-detail
+     gets a mode-hike/mode-race class (set in setDetailMode) so those
+     same elements read warm when the event being viewed is a race. */
+  #screen-detail.mode-race .stat{ background:var(--mist-warm); }
+  #screen-detail.mode-race .section h3{ color:var(--moss-warm); }
+  #screen-detail.mode-race .infoline{ border-bottom-color:var(--moss-line-warm); }
+  #screen-detail.mode-race .distrow{ border-bottom-color:var(--moss-line-warm); }
+  #screen-detail.mode-race .note{ background:var(--mist-warm); }
+  #screen-detail.mode-race .cta.secondary{ background:var(--mist-warm); }
 
   .hide{ display:none !important; }
 </style>
@@ -747,7 +859,7 @@
   <!-- ===================== HIKES FEED ===================== -->
   <div class="screen hide" id="screen-hikes">
     <div class="appbar">
-      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines — back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
+      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes active" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races" onclick="showScreen('races')">Races</div>
@@ -767,6 +879,8 @@
       <div class="chip">Cebu only</div>
       <div class="chip">Outside Cebu</div>
       <div class="chip">Beginner</div>
+      <div class="scroll-fade left" aria-hidden="true"></div>
+      <div class="scroll-fade right" aria-hidden="true"></div>
     </div>
     <div class="feed">
 
@@ -803,7 +917,7 @@
             <p class="card-title">Mt. Manunggal Trail</p>
             <p class="card-sub">Balamban · by Sugbu Trekkers PH</p>
           </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,26 34,14 50,18 66,6 84,12 100,8 120,16" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,26 34,14 50,18 66,6 84,12 100,8 120,16" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="tagrow">
           <span class="tag">6.4 km</span><span class="tag">320m gain</span>
@@ -819,7 +933,7 @@
             <p class="card-title">Sirao Garden Loop + Coffee</p>
             <p class="card-sub">Busay · by Cebu Weekend Walkers</p>
           </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,24 20,22 40,18 60,20 80,10 100,14 120,12" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,24 20,22 40,18 60,20 80,10 100,14 120,12" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="tagrow"><span class="tag">3.1 km</span><span class="tag">Easy</span><span class="tag">Family-friendly</span></div>
       </div>
@@ -845,7 +959,7 @@
   <!-- ===================== RACES FEED ===================== -->
   <div class="screen hide" id="screen-races">
     <div class="appbar">
-      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines — back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
+      <button class="wordmark" type="button" onclick="showScreen('landing')" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
         <div class="mode-tab is-hikes" onclick="showScreen('hikes')">Hikes</div>
         <div class="mode-tab is-races active" onclick="showScreen('races')">Races</div>
@@ -865,13 +979,15 @@
       <div class="chip">3–6 months out</div>
       <div class="chip">Cebu</div>
       <div class="chip">Visayas / PH</div>
+      <div class="scroll-fade left" aria-hidden="true"></div>
+      <div class="scroll-fade right" aria-hidden="true"></div>
     </div>
     <div class="feed">
 
       <div class="justannounced" onclick="openDetail('race')">
-        <p class="label">★ JUST ANNOUNCED — 2 DAYS AGO</p>
+        <p class="label">★ JUST ANNOUNCED · 2 DAYS AGO</p>
         <p class="card-title">Sugbu SkyRace 2026</p>
-        <p class="card-sub" style="color:#E4EEF2;">Mantalongon, Dalaguete · Nov 7, 2026 · 126 days to go</p>
+        <p class="card-sub" style="color:oklch(96% 0.015 55);">Mantalongon, Dalaguete · Nov 7, 2026 (126 days to go)</p>
       </div>
 
       <div class="datedivider"><span>SEP 5–6 · 2 RACES THIS WEEKEND</span><div class="line"></div></div>
@@ -882,7 +998,7 @@
             <p class="card-title">Babag Ridge Run</p>
             <p class="card-sub">Cebu City · Tabacolan Trail Runners</p>
           </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 18,16 36,20 54,8 72,14 90,6 108,16 120,12" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 18,16 36,20 54,8 72,14 90,6 108,16 120,12" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="tagrow">
           <span class="tag far">68 days to go</span>
@@ -897,7 +1013,7 @@
             <p class="card-title">Kan-irag Vertical Kilometer</p>
             <p class="card-sub">Argao · Visayas Trail Series</p>
           </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,24 28,26 42,10 56,14 70,2 84,8 98,4 120,8" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,24 28,26 42,10 56,14 70,2 84,8 98,4 120,8" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="tagrow"><span class="tag far">68 days to go</span><span class="tag">5K VK</span><span class="tag urgent">Early bird ends in 6d</span></div>
       </div>
@@ -910,7 +1026,7 @@
             <p class="card-title">Visayas Mountain Ultra</p>
             <p class="card-sub">Negros Oriental · Region-wide series</p>
           </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,10 32,18 48,4 64,16 80,8 96,20 110,12 120,18" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,10 32,18 48,4 64,16 80,8 96,20 110,12 120,18" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="tagrow">
           <span class="tag outside">Outside Cebu</span>
@@ -925,13 +1041,9 @@
   <!-- ===================== EVENT DETAIL ===================== -->
   <div class="screen hide" id="screen-detail">
     <div class="detail-hero">
-      <button class="backbtn" onclick="showScreen(lastFeed)">← Back to list</button>
-      <div class="segctl">
-        <button class="segbtn hike" id="seg-hike" onclick="setDetailMode('hike')">Viewing as Hiker</button>
-        <button class="segbtn race" id="seg-race" onclick="setDetailMode('race')">Viewing as Runner</button>
-      </div>
+      <button class="backbtn" onclick="showScreen(lastFeed, 'pop')">← Back to list</button>
       <p class="detail-title" id="detTitle">Mt. Manunggal Trail</p>
-      <p class="detail-sub" id="detSub">Balamban, Cebu · Sat, Jul 4 · by Sugbu Trekkers PH</p>
+      <p class="detail-sub" id="detSub">Balamban, Cebu · Sat, Jul 4</p>
     </div>
 
     <div class="detail-body">
@@ -960,7 +1072,7 @@
           <div class="infoline"><span class="k">Contact</span><span class="v">via Facebook page</span></div>
         </div>
         <div class="section">
-          <div class="note">Local Cebu hike — short notice is normal here. Out-of-Cebu trips on this site are flagged separately and posted with longer lead time.</div>
+          <div class="note">Local Cebu hike, so short notice is normal here. Out-of-Cebu trips on this site are flagged separately and posted with longer lead time.</div>
         </div>
         <div class="ctarow">
           <button class="cta primary hike">Message organizer</button>
@@ -983,7 +1095,7 @@
           <div class="infoline"><span class="k">Venue</span><span class="v">Babag Ridge, Cebu City</span></div>
         </div>
         <div class="section">
-          <div class="note">Plan ahead: nearest airport is Mactan-Cebu (CEB). Race weekend falls on a long weekend — flights and Airbnbs in the area tend to fill up by 6–8 weeks out.</div>
+          <div class="note">Plan ahead: nearest airport is Mactan-Cebu (CEB). Race weekend falls on a long weekend, so flights and Airbnbs in the area tend to fill up by 6–8 weeks out.</div>
         </div>
         <div class="ctarow">
           <button class="cta primary race">Go to registration</button>
@@ -1108,11 +1220,42 @@
     }
   }
 
-  function showScreen(name){
-    document.querySelectorAll('.screen').forEach(s => s.classList.add('hide'));
-    document.getElementById('screen-' + name).classList.remove('hide');
+  function showScreen(name, transition){
+    const nextEl = document.getElementById('screen-' + name);
+    const prevEl = document.querySelector('.screen:not(.hide)');
+
+    if(transition && prevEl && prevEl !== nextEl){
+      const enterClass = transition === 'push' ? 'nav-push-enter' : 'nav-pop-enter';
+      const exitClass = transition === 'push' ? 'nav-push-exit' : 'nav-pop-exit';
+      nextEl.classList.remove('hide');
+      nextEl.style.zIndex = transition === 'push' ? '2' : '1';
+      prevEl.style.zIndex = transition === 'push' ? '1' : '2';
+      nextEl.classList.add(enterClass);
+      prevEl.classList.add(exitClass);
+      void nextEl.offsetWidth; // force layout flush so the start state paints before we animate to the end state
+      requestAnimationFrame(() => {
+        nextEl.classList.add('nav-anim');
+        prevEl.classList.add('nav-anim');
+      });
+      const onDone = () => {
+        prevEl.classList.add('hide');
+        [nextEl, prevEl].forEach(el => {
+          el.classList.remove('nav-push-enter', 'nav-push-exit', 'nav-pop-enter', 'nav-pop-exit', 'nav-anim');
+          el.style.zIndex = '';
+        });
+        nextEl.removeEventListener('transitionend', onDone);
+      };
+      nextEl.addEventListener('transitionend', onDone, { once:true });
+    } else {
+      document.querySelectorAll('.screen').forEach(s => s.classList.add('hide'));
+      nextEl.classList.remove('hide');
+    }
+
     if(name === 'hikes' || name === 'races') lastFeed = name;
     syncSearchInputs();
+    // the just-shown screen's chiprow was scrollWidth:0 while hidden —
+    // recheck now that it's actually laid out
+    requestAnimationFrame(updateAllChipRowFades);
   }
 
   function toggleCluster(e){
@@ -1277,15 +1420,15 @@
 
   function openDetail(type){
     setDetailMode(type);
-    showScreen('detail');
+    showScreen('detail', 'push');
   }
 
   function setDetailMode(type){
     const isHike = type === 'hike';
-    document.getElementById('seg-hike').classList.toggle('active', isHike);
-    document.getElementById('seg-race').classList.toggle('active', !isHike);
     document.getElementById('hikeContent').classList.toggle('hide', !isHike);
     document.getElementById('raceContent').classList.toggle('hide', isHike);
+    document.getElementById('screen-detail').classList.toggle('mode-hike', isHike);
+    document.getElementById('screen-detail').classList.toggle('mode-race', !isHike);
 
     const line = document.getElementById('bigSparkLine');
     const grid = document.getElementById('statGrid');
@@ -1293,21 +1436,21 @@
     const sub = document.getElementById('detSub');
 
     if(isHike){
-      line.setAttribute('stroke', '#F2611B');
+      line.setAttribute('stroke', '#235E78');
       grid.innerHTML = `
         <div class="stat"><div class="v">6.4 km</div><div class="l">Distance</div></div>
         <div class="stat"><div class="v">320 m</div><div class="l">Elev. gain</div></div>
         <div class="stat"><div class="v">Moderate</div><div class="l">Difficulty</div></div>`;
       title.textContent = 'Mt. Manunggal Trail';
-      sub.textContent = 'Balamban, Cebu · Sat, Jul 4 · by Sugbu Trekkers PH';
+      sub.textContent = 'Balamban, Cebu · Sat, Jul 4';
     } else {
-      line.setAttribute('stroke', '#235E78');
+      line.setAttribute('stroke', '#F2611B');
       grid.innerHTML = `
         <div class="stat"><div class="v">126</div><div class="l">Days to go</div></div>
         <div class="stat"><div class="v">42K</div><div class="l">Max distance</div></div>
         <div class="stat"><div class="v">Open</div><div class="l">Reg. status</div></div>`;
       title.textContent = 'Babag Ridge Run';
-      sub.textContent = 'Cebu City · Sep 5, 2026 · by Tabacolan Trail Runners';
+      sub.textContent = 'Cebu City · Sep 5, 2026';
     }
   }
 
@@ -1328,8 +1471,33 @@
     });
   }
 
+  // ---- CHIP ROW SCROLL FADES -----------------------------------
+  // Shows a soft edge fade only on whichever side still has hidden
+  // chips to scroll to — never both, never neither, always reflecting
+  // real scroll position rather than just "is this row scrollable".
+  function updateChipRowFade(row){
+    if(!row) return;
+    const maxScroll = row.scrollWidth - row.clientWidth;
+    const left = row.querySelector('.scroll-fade.left');
+    const right = row.querySelector('.scroll-fade.right');
+    if(left) left.classList.toggle('show', row.scrollLeft > 4);
+    if(right) right.classList.toggle('show', row.scrollLeft < maxScroll - 4);
+  }
+
+  function updateAllChipRowFades(){
+    document.querySelectorAll('.chiprow').forEach(updateChipRowFade);
+  }
+
+  function initChipRowFades(){
+    document.querySelectorAll('.chiprow').forEach(row => {
+      row.addEventListener('scroll', () => updateChipRowFade(row), { passive:true });
+    });
+  }
+
   window.addEventListener('resize', syncStickyOffsets);
+  window.addEventListener('resize', updateAllChipRowFades);
   window.addEventListener('load', syncStickyOffsets);
+  window.addEventListener('load', updateAllChipRowFades);
   if('ResizeObserver' in window){
     document.querySelectorAll('.appbar').forEach(appbar => {
       new ResizeObserver(syncStickyOffsets).observe(appbar);
@@ -1339,7 +1507,9 @@
   // default state
   setDetailMode('hike');
   initSearchPlaceholders();
+  initChipRowFades();
   syncStickyOffsets();
+  updateAllChipRowFades();
 </script>
 
 <script>
@@ -1376,14 +1546,14 @@
 
   const PLACEHOLDER_HIKES_CSV =
 `type,title,date,area,location_detail,organizer,cebu_flag,lead_time_tag,elev_profile,notes,distance_km,elev_gain_m,difficulty,meetup_point,meetup_time,rsvp_cutoff,fee,contact
-hike,Mt. Manunggal Trail,2026-07-04,Mt. Manunggal,"Balamban, Cebu",Sugbu Trekkers PH,cebu,urgent,"32,20,22,6,10,4,14,10,18",Local Cebu hike — short notice is normal here.,6.4,320,Moderate,Balamban Public Market,5:00 AM,2026-07-02 18:00,300,via Facebook page
+hike,Mt. Manunggal Trail,2026-07-04,Mt. Manunggal,"Balamban, Cebu",Sugbu Trekkers PH,cebu,urgent,"32,20,22,6,10,4,14,10,18","Local Cebu hike, so short notice is normal here.",6.4,320,Moderate,Balamban Public Market,5:00 AM,2026-07-02 18:00,300,via Facebook page
 hike,Sirao Garden Loop + Coffee,2026-07-12,Sirao Garden Loop,Busay,Cebu Weekend Walkers,cebu,far,"24,22,18,20,10,14,12",,3.1,90,Easy,Sirao Flower Farm Gate,6:00 AM,2026-07-10 18:00,200,via Facebook page
 hike,Osmeña Peak Sunrise Hike,2026-07-04,Osmeña Peak,"Mantalongon, Dalaguete",JM Outdoors,cebu,urgent,"30,18,20,4,12,6,16,10,18",,5.0,400,Moderate,Mantalongon Public Market,4:00 AM,2026-07-02 18:00,350,via Facebook page
-hike,Mt. Pulag Traverse,2026-08-01,Mt. Pulag,"Benguet (3D2N)",Northbound Expeditions,outside,far,"40,24,28,10,16,8,20,14,22",Out-of-Cebu trip — longer lead time applies.,15,1200,Hard,Cebu City Meetup Point,TBA,2026-07-20 18:00,4500,via Facebook page`;
+hike,Mt. Pulag Traverse,2026-08-01,Mt. Pulag,"Benguet (3D2N)",Northbound Expeditions,outside,far,"40,24,28,10,16,8,20,14,22","Out-of-Cebu trip, longer lead time applies.",15,1200,Hard,Cebu City Meetup Point,TBA,2026-07-20 18:00,4500,via Facebook page`;
 
   const PLACEHOLDER_RACES_CSV =
 `type,title,date,area,location_detail,organizer,cebu_flag,lead_time_tag,elev_profile,notes,reg_status,early_bird_date,venue,distances
-race,Sugbu SkyRace 2026,2026-11-07,Mantalongon,"Mantalongon, Dalaguete",Sugbu SkyRunners,cebu,far,"36,20,24,8,18,6,16,14,20",Just announced — plan ahead.,Open,2026-09-01,"Mantalongon, Dalaguete","21K · 42K · 80K"
+race,Sugbu SkyRace 2026,2026-11-07,Mantalongon,"Mantalongon, Dalaguete",Sugbu SkyRunners,cebu,far,"36,20,24,8,18,6,16,14,20","Just announced, plan ahead.",Open,2026-09-01,"Mantalongon, Dalaguete","21K · 42K · 80K"
 race,Babag Ridge Run,2026-09-05,Babag Ridge,Cebu City,Tabacolan Trail Runners,cebu,far,"30,16,20,8,14,6,16,12",,Open,2026-08-15,"Babag Ridge, Cebu City","10K · 21K"
 race,Kan-irag Vertical Kilometer,2026-09-05,Kan-irag,Argao,Visayas Trail Series,cebu,far,"32,24,26,10,14,2,8,4,8",,Open,2026-08-30,"Kan-irag, Argao","5K VK"
 race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wide series,outside,far,"30,10,18,4,16,8,20,12,18",,Reg opens Sep 1,,"Negros Oriental","50K · 100K"`;
@@ -1543,7 +1713,7 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     }
 
     if (picks.length === 0) {
-      listEl.innerHTML = `<div class="wp-empty">No upcoming events right now — check back soon.</div>`;
+      listEl.innerHTML = `<div class="wp-empty">No upcoming events right now, check back soon.</div>`;
       return;
     }
 
@@ -1569,15 +1739,15 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
   // ---- RUN (Sprint 1: console-only, no UI wiring yet) -----------
   loadEvents()
     .then(events => {
-      console.log(`[Trailhead Cebu] Loaded ${events.length} events (USE_LIVE_DATA=${USE_LIVE_DATA})`);
+      console.log(`[MASL.ph] Loaded ${events.length} events (USE_LIVE_DATA=${USE_LIVE_DATA})`);
       console.table(events);
 
       const issues = validateEvents(events);
       if (issues.length > 0) {
-        console.warn(`[Trailhead Cebu] ${issues.length} data issue(s) found in the Sheet:`);
+        console.warn(`[MASL.ph] ${issues.length} data issue(s) found in the Sheet:`);
         issues.forEach(msg => console.warn("  ⚠️ " + msg));
       } else {
-        console.log("[Trailhead Cebu] No data issues found — all rows have required fields.");
+        console.log("[MASL.ph] No data issues found — all rows have required fields.");
       }
 
       // Exposed globally so it can be inspected/reused from the
@@ -1587,7 +1757,7 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
       renderWeekPreview(events);
     })
     .catch(err => {
-      console.error("[Trailhead Cebu] Failed to load events:", err);
+      console.error("[MASL.ph] Failed to load events:", err);
       const listEl = document.getElementById('weekPreviewList');
       if (listEl) {
         listEl.innerHTML = `<div class="wp-empty">Couldn't load featured events.</div>`;
