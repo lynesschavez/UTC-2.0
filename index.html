@@ -90,6 +90,14 @@
   .screen{
     position:absolute; inset:0;
     display:flex; flex-direction:column;
+    /* Opaque so each screen is a fully solid layer during push/pop —
+       without this, the gaps between/around a screen's own elements
+       (header padding, space around cards, etc.) are transparent, and
+       whichever screen is underneath in z-order shows through those
+       gaps even though the top screen's z-index should fully occlude
+       it. That transparent bleed is what produces the "remnants of
+       the previous page caught up in the new page" ghosting look. */
+    background:var(--paper);
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     /* Own compositing layer at all times, not just mid-transition — on
@@ -131,8 +139,8 @@
      instant the transient class is removed after the transition ends. */
   .screen.nav-push-enter .appbar, .screen.nav-push-exit .appbar,
   .screen.nav-pop-enter .appbar, .screen.nav-pop-exit .appbar,
-  .screen.nav-push-enter .chiprow, .screen.nav-push-exit .chiprow,
-  .screen.nav-pop-enter .chiprow, .screen.nav-pop-exit .chiprow{
+  .screen.nav-push-enter .chiprow-wrap, .screen.nav-push-exit .chiprow-wrap,
+  .screen.nav-pop-enter .chiprow-wrap, .screen.nav-pop-exit .chiprow-wrap{
     position:static;
   }
 
@@ -192,16 +200,47 @@
     background:rgba(255,255,255,0.04);
     color:#D8DFD2;
     cursor:pointer;
+    transition:color .15s linear;
   }
-  .mode-tab.is-hikes.active{ background:var(--dawn-blue); border-color:var(--dawn-blue); color:#fff; }
-  .mode-tab.is-races.active{ background:var(--flag-orange); border-color:var(--flag-orange); color:#fff; }
+  /* --tab-progress runs 0 (fully Hikes) -> 1 (fully Races) and is set
+     either instantly (tap) or continuously every touchmove frame while
+     dragging the list pager below — that's what makes the pill color
+     track the swipe live instead of snapping only once it settles. */
+  .appbar{ --tab-progress:0; }
+  .mode-tab.is-hikes{
+    background:color-mix(in oklch, var(--dawn-blue) calc((1 - var(--tab-progress)) * 100%), rgba(255,255,255,0.04));
+    border-color:color-mix(in oklch, var(--dawn-blue) calc((1 - var(--tab-progress)) * 100%), rgba(255,255,255,0.14));
+  }
+  .mode-tab.is-races{
+    background:color-mix(in oklch, var(--flag-orange) calc(var(--tab-progress) * 100%), rgba(255,255,255,0.04));
+    border-color:color-mix(in oklch, var(--flag-orange) calc(var(--tab-progress) * 100%), rgba(255,255,255,0.14));
+  }
+  .mode-tab.active{ color:#fff; }
 
-  /* ---------- filter chip row ---------- */
+  /* ---------- filter chip row ----------
+     .scroll-fade overlays must NOT be descendants of the element that
+     actually scrolls (.chiprow) — if they are, they scroll away with
+     the chips instead of staying pinned to the row's visual edges.
+     .chiprow-wrap is the non-scrolling containing block: it holds the
+     sticky positioning and is what the fades are absolutely positioned
+     against. .chiprow itself only does one job — scroll the chips. */
+  .chiprow-wrap{
+    position:sticky; top:0; z-index:4;
+    background:var(--paper);
+  }
   .chiprow{
     display:flex; gap:7px; padding:12px 14px 4px;
-    overflow-x:auto; flex-shrink:0; background:var(--paper);
-    position:sticky; top:0; z-index:4;
+    overflow-x:auto; flex-shrink:0;
+    /* Browser's own scrollbar-drawing was never turned off here, so on
+       platforms that paint a visible horizontal scrollbar (most Android
+       browsers, some desktop touch setups) it rendered as a thin bar
+       across the bottom of the pills. Suppressed on all three engines —
+       WebKit/Blink, Firefox, old Edge/IE — while overflow-x:auto above
+       keeps the row itself still scrollable by touch/drag. */
+    scrollbar-width:none;
+    -ms-overflow-style:none;
   }
+  .chiprow::-webkit-scrollbar{ display:none; height:0; }
   .chip{
     font-family:var(--mono);
     font-size:11.5px;
@@ -218,14 +257,35 @@
      color — just a soft dissolve into the row's own background. JS
      toggles .show based on actual scroll position, so a fade never
      appears on an edge with nothing left to scroll to. */
-  .chiprow .scroll-fade{
+  .chiprow-wrap .scroll-fade{
     position:absolute; top:0; bottom:0; width:28px;
     pointer-events:none; opacity:0;
     transition:opacity .3s cubic-bezier(.25,1,.5,1);
   }
-  .chiprow .scroll-fade.left{ left:0; background:linear-gradient(to right, var(--paper), transparent); }
-  .chiprow .scroll-fade.right{ right:0; background:linear-gradient(to left, var(--paper), transparent); }
-  .chiprow .scroll-fade.show{ opacity:1; }
+  .chiprow-wrap .scroll-fade.left{ left:0; background:linear-gradient(to right, var(--paper), transparent); }
+  .chiprow-wrap .scroll-fade.right{ right:0; background:linear-gradient(to left, var(--paper), transparent); }
+  .chiprow-wrap .scroll-fade.show{ opacity:1; }
+
+  /* ---------- Hikes/Races swipeable pager ----------
+     #screen-list holds ONE persistent header (appbar: wordmark, tabs,
+     search) above a viewport containing both lists side by side. The
+     header never moves; only .list-track slides horizontally so the
+     list content changes while the header stays put. Each .list-page
+     keeps its own vertical scroll (and its own chiprow, sticky at
+     top:0 of that scroll — no JS offset needed since the appbar is no
+     longer part of this scroll chain at all). */
+  #screen-list{ overflow:hidden; }
+  .list-viewport{ position:relative; flex:1; overflow:hidden; }
+  .list-track{
+    display:flex; width:200%; height:100%;
+    transition:transform .32s cubic-bezier(.25,1,.5,1);
+  }
+  .list-page{
+    width:50%; height:100%; flex-shrink:0;
+    display:flex; flex-direction:column;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .list-page::-webkit-scrollbar{ width:0; }
 
   .feed{ padding:6px 14px 30px; }
 
@@ -280,6 +340,17 @@
     color:var(--char-soft);
     margin:0;
   }
+  /* per-card date — needed on the Races feed because its dividers group
+     several different dates under one heading (e.g. "JAN 2027"), so a
+     card's own exact date isn't otherwise stated anywhere on the card.
+     Plain text, not a pill/badge, so it doesn't read as another tag. */
+  .card-date{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--moss);
+    margin:0 0 3px;
+  }
+  #screen-races .card-date{ color:var(--moss-warm); }
   .spark{ flex-shrink:0; }
   .tagrow{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
   .tag{
@@ -408,6 +479,54 @@
     padding:14px 22px 16px;
   }
   .search-sticky .search-bar{ margin-top:0; }
+
+  /* live prediction dropdown — floats under the hero search bar,
+     anchored to .search-sticky (already a positioned element via
+     position:sticky) so it tracks the bar as it pins to the top of
+     the scroll area rather than staying put while content scrolls
+     underneath it. */
+  .search-preview{
+    position:absolute; left:22px; right:22px; top:100%;
+    margin-top:8px;
+    background:#fff;
+    border:1px solid var(--moss-line);
+    border-radius:12px;
+    box-shadow:0 16px 32px -14px rgba(0,0,0,0.45);
+    overflow:hidden;
+    max-height:328px; overflow-y:auto;
+    z-index:6;
+  }
+  .search-preview .sp-item{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:11px 14px;
+    background:none; border:none; border-bottom:1px solid var(--moss-line);
+    font-family:inherit; text-align:left; cursor:pointer;
+  }
+  .search-preview .sp-item:last-of-type{ border-bottom:none; }
+  .search-preview .sp-item:hover, .search-preview .sp-item:focus-visible, .search-preview .sp-item.is-active{
+    background:var(--mist); outline:none;
+  }
+  .search-preview .sp-dot{
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  }
+  .search-preview .sp-dot.hike{ background:var(--dawn-blue); }
+  .search-preview .sp-dot.race{ background:var(--flag-orange); }
+  .search-preview .sp-body{ flex:1; min-width:0; }
+  .search-preview .sp-title{
+    font-family:var(--body); font-weight:600; font-size:13px; color:var(--char);
+    margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .search-preview .sp-meta{ font-family:var(--mono); font-size:10.5px; color:var(--char-soft); }
+  .search-preview .sp-empty{
+    padding:16px 14px; font-family:var(--body); font-size:12.5px; color:var(--char-soft);
+    text-align:center; line-height:1.5;
+  }
+  .search-preview .sp-viewall{
+    display:block; width:100%; padding:12px 14px;
+    font-family:var(--body); font-weight:600; font-size:12.5px; color:var(--dawn-blue-2);
+    background:var(--mist); border:none; cursor:pointer; text-align:center;
+  }
+  .search-preview .sp-viewall:hover{ background:var(--moss-line); }
 
   .empty-state{
     font-family:var(--body); font-size:13px; color:var(--char-soft);
@@ -594,13 +713,19 @@
   .panel-content{ position:relative; z-index:1; flex:1; padding-right:36px; }
   .panel .ptitle{ font-family:var(--display); font-size:20px; font-weight:600; margin:0 0 4px; }
   .panel .psub{ font-family:var(--body); font-size:12.5px; opacity:.92; margin:0 0 10px; max-width:80%; }
-  .panel .pmeta{ font-family:var(--mono); font-size:11px; opacity:.85; }
-  /* arrow lives as its own badge, echoing the icon-badge treatment, anchored
-     to the card's bottom-right corner — an endpoint the eye lands on after
-     reading title → subtext → stat, rather than a glyph floating mid-card. */
+  .panel .pmeta-wrap{ position:relative; height:14px; overflow:hidden; }
+  .panel .pmeta{
+    font-family:var(--mono); font-size:11px; opacity:.85;
+    position:absolute; top:0; left:0; right:0;
+    transition:opacity .4s cubic-bezier(.25,1,.5,1);
+  }
+  /* arrow lives as its own badge, echoing the icon-badge treatment, vertically
+     centered on the card's right edge — a clear standalone affordance rather
+     than a glyph crowding the last line of copy (pmeta) beside it. */
   .panel .arrow{
     position:absolute; z-index:1;
-    right:16px; bottom:16px;
+    right:16px; top:50%;
+    transform:translateY(-50%);
     width:32px; height:32px;
     display:flex; align-items:center; justify-content:center;
     border-radius:50%;
@@ -609,7 +734,7 @@
     font-size:15px; line-height:1; color:#fff;
     transition:background .2s, transform .2s;
   }
-  .panel:hover .arrow{ background:rgba(255,255,255,0.28); transform:translateX(2px); }
+  .panel:hover .arrow{ background:rgba(255,255,255,0.28); transform:translateY(-50%) translateX(2px); }
   /* background watermark art — original supplied artwork used unaltered.
      Oversized and bottom-anchored so the mountain's base sinks below the
      card's bottom edge (cropped there), while the peak stays fully in view. */
@@ -678,6 +803,12 @@
     display:flex; align-items:center; gap:10px;
     background:#fff; border:1px solid var(--moss-line); border-radius:12px;
     padding:10px 12px; margin-bottom:8px;
+    cursor:pointer;
+    transition:transform .25s cubic-bezier(.25,1,.5,1), border-color .25s cubic-bezier(.25,1,.5,1);
+  }
+  .wp-item:active{ transform:scale(0.98); border-color:var(--moss); }
+  .wp-item:focus-visible{
+    outline:2px solid oklch(55% 0.09 155); outline-offset:2px;
   }
   .wp-item:last-child{ margin-bottom:0; }
   .wp-dot{
@@ -731,9 +862,11 @@
 
   /* ---------- detail screen ---------- */
   .detail-hero{ background:var(--canopy); padding:16px 16px 0; color:var(--mist); }
+  .backnav{ display:flex; align-items:center; gap:8px; padding:0 0 12px; }
+  .backnav-sep{ font-family:var(--mono); font-size:12px; color:#5E6B58; }
   .backbtn{
     font-family:var(--mono); font-size:12px; color:#B7C2AF;
-    background:none; border:none; padding:0 0 12px; cursor:pointer;
+    background:none; border:none; padding:0; cursor:pointer;
   }
   .detail-title{ font-family:var(--display); font-size:21px; font-weight:600; margin:0 0 4px; padding-bottom:14px;}
   .detail-sub{ font-family:var(--mono); font-size:11.5px; color:#A9B7A1; }
@@ -800,12 +933,13 @@
           <circle cx="11" cy="11" r="7"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="heroSearchInput" placeholder="Search mountains, races, organizers..." oninput="handleSearch(this.value)">
+        <input type="text" id="heroSearchInput" placeholder="Search mountains, races, organizers..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="searchPreview" aria-autocomplete="list" oninput="handleSearch(this.value); renderSearchPreview(this.value);" onfocus="renderSearchPreview(this.value)" onkeydown="handleHeroSearchKeydown(event)">
         <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
       </div>
+      <div class="search-preview hide" id="searchPreview" role="listbox" aria-label="Search suggestions"></div>
     </div>
     <div class="panels">
-      <div class="panel hikes" onclick="showScreen('hikes')">
+      <div class="panel hikes" onclick="openList('hikes')">
         <div class="hikes-watermark" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1175.24 340.09"><g id="Layer_2" data-name="Layer 2"><path d="M1407,520.4c-29.17-6.84-59.7-12.19-87.43-24.23-9.44-4.18-18.31-9.57-27.86-13.45-10.35-4.36-21.55-6-32-9.78-14.31-5.42-27.05-15.29-40-25.1-13.43-9.81-25-22-38-32.63-7.68-6-16.75-7.13-25.31-11-15.24-6.7-25.2-27-38.89-35.11-10-6.41-23.66-4.3-34-10.11-16.28-8.6-25.46-33.35-44.53-32.62-12.52.95-26,11.14-37,2.68-15.92-13.91-52.61-48.38-68.69-62.93-3.68-3.33-7.33-5.87-12.49-4.51-12.56,2.78-29.68,17-42.29,7.9-9.43-7.68-15.91-19.66-25-28-8.23-8.59-19.29-13.71-28.55-19.89-12.68-8.86-19.94-24.66-30.64-35.38-6.5-6.7-10.71-5.69-17.45.61C756,208.15,736.35,226.37,718.51,249c-8.44,10-18.21,17.74-26.89,27.6-3.21,3.44-6.41,7-10.45,9.39-5.66,3.5-12,3.36-17.36,4.92-12.23,3.21-16.49,21.64-25.66,28.27-12.23,8.62-23.83-7.7-33.9-14-7.86-6.27-16-2.17-22.21,4.63-4.81,4.74-9.48,10-14,15-11.16,13-22.37,21.75-33.93,33.4-9.54,9.67-16.48,21.39-23.28,33.11-3.94,6-7.39,14.5-15.26,13.73-13.29-1.66-27.84-22.78-42.45-11.72-20.43,15.47-36.59,36.83-56,53.66-32.59,29.17-74.35,43.32-114.39,58.88-15.3,6.39-35.87,11.27-50.72,15.31,19,.6,935.49,1.11,1175.25-.7Zm-211.31-63c5.41,7.8,11.42,18.21-.52,10-14.43-10-31-21.31-38.89-36.59-1.35-2.84-3.61-7.47-1.23-9.87,12.64-3.42,33.61,26.38,40.28,35.92Zm-232.05-13c-9.16-7.94-21.4-18.71-28.46-29.21-4.06-6.42-.54-6.93,4-4.7,16.77,7.61,52,39.8,65.54,56.07,1.37,1.72,3.52,4.09,3.83,5.58a.27.27,0,0,1-.24.29c-3.1-.51-9.23-5.12-17.88-10.35-8.65-5.55-19.56-11.88-26.41-17.38Zm143-63.18c6.39-1.41,18.37,19.65,16.13,22.95-5.15,2.27-19.56-18.76-16.34-22.8Zm-69.7,2.4c2.19-2.15,2.53-6.51,2.38-11.3-.62-8,.64-17.24,8.8-20.23,14.64-4.43,23.43,12,31.08,23.56,10.25,17.38,18,34.83,27.07,49.58,3.37,5.95-7.12-2.6-13.58-6.59L1059,396.19c-7.81-5.18-12.31-8.43-12.62-7.36,5.69,13.8,25.68,47.52,33.72,63.37,7.62,13.76,7.71,14.64-1.67,5.54-21.85-21.22-47.6-40.74-64.62-65.43-2.05-3.17-8.94-13.05-2-13.17,6.41.11,18.21,9.77,24.84,4.78ZM928.13,315.56c1.31-.77,1.55-3.32.92-7.22-4.81-22.55-12.35-37.66,14-14.14,13.72,12.64,29.19,19.63,39.75,34.93,5.06,6.84,39.11,63.41,9.34,38.29-10.41-7.86-28.54-30.85-24.2-5,6.46,41.52,36.46,75.33,64.24,107.15,2,2.6,5.94,7,5.47,9-2.79.55-9.88-5.63-13-8.06-19.25-15.91-38.77-31.75-54.78-50.7C959.62,408,950.15,395.31,939,384.24c-24.24-20.76-19.17-20.64-29.1-49.71-1.93-6.58-8.64-23.46,2.63-23.46,5.34.27,11.69,5.67,15.41,4.59ZM777.39,241.33c9.33,2,15.47,6.34,12.66-7.53-.69-4.79-5.84-25.15,3.33-22.28,5.64,2.59,11.39,16.15,14.47,23.7,5.88,13.17,12.76,27.44,23.1,37.64,2.61,2,2.18-2.4,1.65-4.8-.28-5.55-12.37-30,1.46-22.45C859.85,261.4,864,294,879,318.87c7.64,13.4,18.48,25.29,28,37.21,8.15,10.49,3.61,11.69-6.84,4.73-10.63-7.11-20.58-16.83-30-25.86-2.33-1.83-18.59-19.93-18.44-11,.22,4.09,4.94,13,7.26,20.42,2.25,6.88,3,13.94,4.11,21,1.55,10.89,6.9,20.84,12.45,30.25,4.13,6.95,8.86,14.54,9.61,18a2.33,2.33,0,0,1-.09,2c-1.89,1-4-1.12-7.34-3.23-7.45-5.62-15.9-12.77-23.44-19-10.15-8.52-19.9-17.1-28.28-27.3-8-9.5-15.3-21.14-23.33-31-13.81-17.3-45.22-39.36-4.05-45.18,5.36-1.92.53-8.14-1.41-11.56-1.86-4.6-28.78-36.92-20.11-37Zm-9.87,119.09c1.89-4.14,7.75-8.72,11.46-12.29,7.6-7.66,14.58-7.38,21.57-.67,15.44,14.44,31,36.75,46.65,52.7,16,20.21,47.39,63.66,55.78,75.63-14.63-8-65.54-49.25-81.83-58.57-4.44-.12,10.72,35.51,5.1,32.75-4.73-3.43-12.61-12.16-18.28-17.57-6.3-6.34-12.89-12.7-18.91-18.95-3.06-3.43-5.36-6.05-5.39-10.33C786,392,787,388.34,777.86,378.56c-4-5.13-12.28-11.06-10.46-17.82Zm-85.81,77.84c1.22,2.12.4,6,.06,8.63-2.22,13.16-7.52,27.58-16.46,37.28-5.43,5.67-13.45,10.91-14.73,6.13-1.41-7.43,24.32-54,31-52.18ZM586,347.79a69.37,69.37,0,0,0,6.36-10.38c4.28-7.5,2.84-23.19,13.38-17.75,3.81,2.26,7.92,6.7,11,10.4,2.51,3.21,5.69,6.48,5.89,10.54,0,4.15-6.41,3.72-12.38,9.29-10,9.94-20.55,21.35-30.34,31.39a90.58,90.58,0,0,1-7.64,7.52c-.76.51-1.38,1.07-1.76.3-.51-1.66,2.81-10.89,5.45-19.24,2.41-7.49,5.16-15.21,9.74-21.6Z" transform="translate(-232 -181.62)"></path></g></svg>
         </div>
@@ -817,11 +951,11 @@
           <p class="ptitle">Hikes &amp; Treks</p>
         </div>
         <p class="psub">Discover hikes you can join, from local day trips to multi-day mountain adventures.</p>
-        <p class="pmeta">14 open this week</p>
+        <div class="pmeta-wrap"><p class="pmeta" id="hikesFacetLine">Loading…</p></div>
         </div>
         <div class="arrow">→</div>
       </div>
-      <div class="panel races" onclick="showScreen('races')">
+      <div class="panel races" onclick="openList('races')">
         <div class="races-watermark" aria-hidden="true">
           <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1190.86 362.67"><path d="M2646.69,410.27C2618.79,389,2586.4,368,2554.23,355c-8.86-3.63-16.68-6.15-24.46-11.25-28-18.56-66.78-48.86-95.79-66.32-7.52-3.74-22.86,4.89-31.36,10.45a223.5,223.5,0,0,1-47.28,24.56c-8.73,3.1-19.08,6.94-28,4.92-9-2.23-17.73-9.61-25.88-15-16.2-11.06-28.3-20.29-41.27-34.78-11.2-11.12-21.65-26.44-36.1-32.71-11.21-4.17-24.82-4.43-35-11.52-22.76-16.39-48.42-53.86-70.07-63.13-24.57-7.83-33.88,26.73-50.26,38.13-9.25,6.55-22,6.24-32.19,14.16-7.35,5.52-12,13.82-15.95,22-4.19,8.42-8,17.78-15.66,23.22-9.29,6.91-22,5.08-29.2,12.79-8,8.26-10.45,23-21.5,28.14-9,4.14-21.06-3-30.09.48-19.89,9.21-26,38.47-48.39,45.62-32.56,11.5-60.55-24.45-82.56-42.79-12.37-12.36-28.12-11.41-41-.13-20.54,17.21-44,33.8-59.48,55-12.77,16.92-21.83,38.42-39.07,51.35a32.31,32.31,0,0,1-14.34,6c-12.13,1.82-24.88-5-34.5,1.17-12.73,8.27-18.87,23.79-29.43,34.15-14.08,13.66-34.21,32.57-49.48,47-15.26,13.57,1.51,10.43,12.28,10.33,18.17-.65,36.48-2.05,54.62-.22,13.87,1.27,28.72,5.22,41.34-.45,5.6-2.35,10.65-6.19,15.56-9.7,5.22-3.8,11.07-7.88,17.43-7.06,4.88.51,9.37,3.13,13.76,5.56,14.69,8,34.1,21.41,46.18,26.59,7.25,1.63,3.36-12.2,4.14-16.61.44-17.35,10.75-10.2,20.83-15.23,5.3-3.25-9.37-21.5-14.5-32.21-16.26-30.75-10.89-38.32,21.56-20.65,9.19,4.14,18,11.75,27.62,13.13,4-.88-6.56-14.53-13.1-26.28-6.29-12.26-17.46-31.57-3.67-42.18,3.71-3.31,8.51-6,9.91-11,3.16-7.34-12.69-36.64,3.18-38.59,4,.2,9.38,5.2,12.53,9,15,17.24,21.74,38.35,40.15,50.05,19.32,9.68,34.5,24.9,47.42,42,24,32.43,66.33,37.34,100.74,50.71,9,3.9,20.76,9.06,13-1.51-4.76-8.76-32.76-29.66-23.92-33,41.19-.25,78,32.76,111.58,56.44,3.56,2.33,8.38,6.17,12,5.13,2.95-1.1,1.25-9.37,3.66-14.46,8.06-11.38,29.79,3.74,39.67,8.68,10.55,5.63,19.78,12.81,19.8,6.56-6.92-23.5-19.62-51.26-27.71-73.89-4.27-10.8-4-11.85,2.71-8.95,16.16,7.19,72.16,32.59,92.92,41.9,1.78.79,3.23,1.39,4.28,1.76,2.12.73,2.6.46,1.63-.93-14.81-15.67-31-35.55-48.79-48.68C2160.12,405,2126,393,2098.64,373.91c-4.64-3.17-10.88-8.31-10.76-13.36.35-7.35,9.9-18.24,17.89-21.13,13.95-2.42,35,4.47,50,6.07,6.06.88,19.17,3.91,16-4.78-7.92-20.09-34.93-46.46-46.4-65-2.78-4.39-4.43-7.95-3.76-10.56.81-3.48,4.56-5,7.12-7.15,3.51-2.68,4.24-7.2,3.56-11.63-1.9-11.35-7.76-34-9.86-45.69-.18-3.11-1.63-6.6,1.15-8,1.87-.32,5.57,2.46,10,6.58,15.07,13.86,28.82,34.64,41.7,47.56,10.62,11.76,26.82,14.39,39.8,22.47,7.51,4.78,12.87,12.28,19.18,18.47,10.55,10.56,23.53,13.89,33.55,25.37,5.52,6.22,12.72,13.61,16,21,1.11,3.05-.72,3.58-4.88,1.4-10.17-4.66-19.2-17.91-29.55-23-6.92-1.7-4.31,11.92-.57,23,5.2,14.49,14.94,29,24.07,41.39,16.12,22,12.29-11.26,26.31-13,5.59-.92,12.41,3.22,17.18,6.91,32.42,26.22,63.17,54.38,102.52,68,7.06,2.1,22.43,9,16.92-5.29-4.33-12-15.45-29.07-17.5-41.33,3.3-12.55,40.77,20,45.61,25.32,26.88,25.21,45.8,61.85,78.19,80,2.61,1.4,4,1.69,3.78.72-17.68-25.15-86.32-106-104.69-132.23-1.52-5.57,1.2-10.88,1.45-17.87,1.66-9.12-4.34-33.37,8.37-29.43,12.65,6.79,25.24,17.32,36.37,26.74,14.22,12.93,19.65,35.75,28.83,53.35,8,16.54,22.85,32.87,36.85,48.63,8.87,8.59,19.6,24.06,29.81,27.16,1.43,0,1.27-1.8-.41-5.13-1.75-3.14-4.16-7.24-6.55-10.64-10.27-15.19-22.36-39.19-24.76-49.29-2.28-8.46,5.51-2.47,9.13.17,10.29,6.83,25.44,21.63,35.66,26.06,2.1.46,1.69-1.66.2-5.7-.85-2.35-2-5.37-2.95-8.5-5.55-19.15,4.67-19.47,14.72-9.62,17.58,14.58,95.06,90.44,102.77,64.91-3.57-15.1-43.82-50.42-63.3-66.08Z" transform="translate(-1519.8 -159.04)"></path><path d="M1920.85,494.79c-21.71-24.13-50.76-53.71-82.8-62.41-6.08-.3.16,6.19,1.89,8.62,21.16,25.81,44.74,54.84,76.53,65.39,10.49,3.34,13.94-1.55,5-10.86Z" transform="translate(-1519.8 -159.04)"></path><path d="M2387.15,453.25c-18.46-13.77-39.7-29-60.39-40.64-7.51-4.24-16.89-9.17-17.24-7.75-.07,1.64,4.07,5.21,5.94,7.08,29.93,27.89,62.26,55,99.28,72.9,30.45,13.16-21.24-28-26.72-30.95Z" transform="translate(-1519.8 -159.04)"></path></svg>
         </div>
@@ -832,8 +966,8 @@
           </span>
           <p class="ptitle">Trail Races</p>
         </div>
-        <p class="psub">Stay up to date with newly announced trail races across the Philippines.</p>
-        <p class="pmeta">6 open for registration</p>
+        <p class="psub">Plan your trail running season with confidence.</p>
+        <div class="pmeta-wrap"><p class="pmeta" id="racesFacetLine">Loading…</p></div>
         </div>
         <div class="arrow">→</div>
       </div>
@@ -880,192 +1014,83 @@
     </div>
   </div>
 
-  <!-- ===================== HIKES FEED ===================== -->
-  <div class="screen hide" id="screen-hikes">
-    <div class="appbar">
+  <!-- ===================== HIKES + RACES (swipeable pager) =====================
+       One shared header (wordmark, tabs, search) that never moves, sitting
+       above a two-page horizontal track. Swiping or tapping a tab slides
+       .list-track; each .list-page below keeps its old id/markup so the
+       existing per-tab CSS scoping (#screen-hikes ..., #screen-races ...)
+       and JS (filterFeed, etc.) keep working unchanged. -->
+  <div class="screen hide" id="screen-list">
+    <div class="appbar" id="listAppbar">
       <button class="wordmark" type="button" onclick="goBack()" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
       <div class="mode-tabs">
-        <div class="mode-tab is-hikes active" onclick="showScreen('hikes')">Hikes</div>
-        <div class="mode-tab is-races" onclick="showScreen('races')">Races</div>
+        <div class="mode-tab is-hikes active" id="tabHikes" onclick="setListMode('hikes')">Hikes</div>
+        <div class="mode-tab is-races" id="tabRaces" onclick="setListMode('races')">Races</div>
       </div>
       <div class="search-bar">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mist)">
           <circle cx="11" cy="11" r="7"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="hikesSearchInput" placeholder="Search hikes, trails, organizers..." oninput="handleSearch(this.value)">
+        <input type="text" id="listSearchInput" placeholder="Search hikes, trails, organizers..." oninput="handleSearch(this.value)">
         <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
       </div>
     </div>
-    <div class="chiprow">
-      <div class="chip active hikes">This week</div>
-      <div class="chip">Next 2 weeks</div>
-      <div class="chip">Cebu only</div>
-      <div class="chip">Outside Cebu</div>
-      <div class="chip">Beginner</div>
+    <div class="list-viewport" id="listViewport">
+      <div class="list-track" id="listTrack">
+      <div class="list-page" id="screen-hikes">
+    <div class="chiprow-wrap">
+      <div class="chiprow">
+        <div class="chip active hikes" data-filter="all-upcoming" onclick="selectChip(this,'hikes')">All upcoming</div>
+        <div class="chip" data-filter="this-week" onclick="selectChip(this,'hikes')">This week</div>
+        <div class="chip" data-filter="next-2-weeks" onclick="selectChip(this,'hikes')">Next 2 weeks</div>
+        <div class="chip" data-filter="cebu-only" onclick="selectChip(this,'hikes')">Cebu only</div>
+        <div class="chip" data-filter="outside-cebu" onclick="selectChip(this,'hikes')">Outside Cebu</div>
+        <div class="chip" data-filter="beginner" onclick="selectChip(this,'hikes')">Beginner</div>
+      </div>
       <div class="scroll-fade left" aria-hidden="true"></div>
       <div class="scroll-fade right" aria-hidden="true"></div>
     </div>
     <div class="feed">
-
-      <div class="datedivider"><span>SAT, JUL 4</span><div class="line"></div></div>
-
-      <div class="card cluster" id="clusterCard" onclick="toggleCluster(event)">
-        <div class="card-top">
-          <div>
-            <p class="card-title">10 sunrise hikes today</p>
-            <p class="card-sub">Osmeña Peak area · 10 different organizers</p>
-          </div>
-        </div>
-        <div class="stack">
-          <div class="av">JM</div><div class="av">RC</div><div class="av">KP</div>
-          <div class="av">+ A</div><div class="av">DG</div><div class="av more">+5</div>
-        </div>
-        <div class="expand-row">
-          <span>Tap to see all 10 meetup details</span>
-          <span class="chevron">⌄</span>
-        </div>
-        <div class="cluster-list">
-          <div class="mini-org"><b>JM Outdoors</b><span>4:00 AM meetup · ₱350</span></div>
-          <div class="mini-org"><b>RC Trail Co.</b><span>3:30 AM meetup · ₱400</span></div>
-          <div class="mini-org"><b>Kandungaw Pilgrims</b><span>4:30 AM meetup · ₱300</span></div>
-          <div class="mini-org"><b>Active Lapu hikers</b><span>3:00 AM meetup · ₱380</span></div>
-          <div class="mini-org"><b>Dalaguete Guides Assoc.</b><span>4:00 AM meetup · ₱250</span></div>
-          <div class="mini-org"><b>+ 5 more organizers</b><span>view all →</span></div>
-        </div>
-      </div>
-
-      <div class="card" onclick="openDetail('hike')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Mt. Manunggal Trail</p>
-            <p class="card-sub">Balamban · by Sugbu Trekkers PH</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,26 34,14 50,18 66,6 84,12 100,8 120,16" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow">
-          <span class="tag">6.4 km</span><span class="tag">320m gain</span>
-          <span class="tag urgent">3 days left to join</span>
-        </div>
-      </div>
-
-      <div class="datedivider"><span>SUN, JUL 12</span><div class="line"></div></div>
-
-      <div class="card" onclick="openDetail('hike')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Sirao Garden Loop + Coffee</p>
-            <p class="card-sub">Busay · by Cebu Weekend Walkers</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,24 20,22 40,18 60,20 80,10 100,14 120,12" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow"><span class="tag">3.1 km</span><span class="tag">Easy</span><span class="tag">Family-friendly</span></div>
-      </div>
-
-      <div class="card" onclick="openDetail('hike')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Mt. Pulag Traverse, Benguet</p>
-            <p class="card-sub">3D2N · by Northbound Expeditions</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,20 30,22 46,6 62,10 78,4 94,14 110,10 120,18" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow">
-          <span class="tag outside">Outside Cebu</span>
-          <span class="tag far">Book by Aug 2</span>
-          <span class="tag">₱4,500 all-in</span>
-        </div>
-      </div>
-
+      <!-- Populated at runtime by renderFeed('hikes', ...) — see the
+           CENTRAL SWITCH script near the end of the file. No cards are
+           hand-authored here anymore, so USE_LIVE_DATA is the one and
+           only thing that decides whether this tab shows placeholder
+           rows or the real Google Sheet. -->
     </div>
-  </div>
 
-  <!-- ===================== RACES FEED ===================== -->
-  <div class="screen hide" id="screen-races">
-    <div class="appbar">
-      <button class="wordmark" type="button" onclick="goBack()" aria-label="Memories Above Sea Level Philippines, back to home"><span class="wm-main">MEMORIES ABOVE SEA LEVEL</span><span class="wm-sub">PHILIPPINES</span></button>
-      <div class="mode-tabs">
-        <div class="mode-tab is-hikes" onclick="showScreen('hikes')">Hikes</div>
-        <div class="mode-tab is-races active" onclick="showScreen('races')">Races</div>
       </div>
-      <div class="search-bar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mist)">
-          <circle cx="11" cy="11" r="7"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input type="text" id="racesSearchInput" placeholder="Search races, organizers..." oninput="handleSearch(this.value)">
-        <button type="button" class="search-clear hide" aria-label="Clear search" onclick="clearSearch()">×</button>
+
+      <div class="list-page" id="screen-races">
+    <div class="chiprow-wrap">
+      <div class="chiprow">
+        <div class="chip active races" data-filter="all-upcoming" onclick="selectChip(this,'races')">All upcoming</div>
+        <div class="chip" data-filter="next-3-months" onclick="selectChip(this,'races')">Next 3 months</div>
+        <div class="chip" data-filter="3-6-months" onclick="selectChip(this,'races')">3–6 months out</div>
+        <div class="chip" data-filter="cebu" onclick="selectChip(this,'races')">Cebu</div>
+        <div class="chip" data-filter="visayas-ph" onclick="selectChip(this,'races')">Visayas / PH</div>
       </div>
-    </div>
-    <div class="chiprow">
-      <div class="chip active races">All upcoming</div>
-      <div class="chip">Next 3 months</div>
-      <div class="chip">3–6 months out</div>
-      <div class="chip">Cebu</div>
-      <div class="chip">Visayas / PH</div>
       <div class="scroll-fade left" aria-hidden="true"></div>
       <div class="scroll-fade right" aria-hidden="true"></div>
     </div>
     <div class="feed">
-
-      <div class="justannounced" onclick="openDetail('race')">
-        <p class="label">★ JUST ANNOUNCED · 2 DAYS AGO</p>
-        <p class="card-title">Sugbu SkyRace 2026</p>
-        <p class="card-sub" style="color:oklch(96% 0.015 55);">Mantalongon, Dalaguete · Nov 7, 2026 (126 days to go)</p>
+      <!-- Populated at runtime by renderFeed('races', ...) — see the
+           CENTRAL SWITCH script near the end of the file. -->
+    </div>
       </div>
 
-      <div class="datedivider"><span>SEP 5–6 · 2 RACES THIS WEEKEND</span><div class="line"></div></div>
-
-      <div class="card" onclick="openDetail('race')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Babag Ridge Run</p>
-            <p class="card-sub">Cebu City · Tabacolan Trail Runners</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 18,16 36,20 54,8 72,14 90,6 108,16 120,12" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow">
-          <span class="tag far">68 days to go</span>
-          <span class="tag">10K · 21K</span>
-          <span class="tag">Reg open</span>
-        </div>
       </div>
-
-      <div class="card" onclick="openDetail('race')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Kan-irag Vertical Kilometer</p>
-            <p class="card-sub">Argao · Visayas Trail Series</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,32 14,24 28,26 42,10 56,14 70,2 84,8 98,4 120,8" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow"><span class="tag far">68 days to go</span><span class="tag">5K VK</span><span class="tag urgent">Early bird ends in 6d</span></div>
-      </div>
-
-      <div class="datedivider"><span>JAN 2027</span><div class="line"></div></div>
-
-      <div class="card" onclick="openDetail('race')">
-        <div class="card-top">
-          <div>
-            <p class="card-title">Visayas Mountain Ultra</p>
-            <p class="card-sub">Negros Oriental · Region-wide series</p>
-          </div>
-          <svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,10 32,18 48,4 64,16 80,8 96,20 110,12 120,18" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="tagrow">
-          <span class="tag outside">Outside Cebu</span>
-          <span class="tag far">Reg opens Sep 1</span>
-          <span class="tag">50K · 100K</span>
-        </div>
-      </div>
-
     </div>
   </div>
 
   <!-- ===================== EVENT DETAIL ===================== -->
   <div class="screen hide" id="screen-detail">
     <div class="detail-hero">
-      <button class="backbtn" id="detailBackBtn" onclick="goBack()">← Back to list</button>
+      <div class="backnav" id="detailBackNav">
+        <button class="backbtn" id="detailBackHomeBtn" onclick="goToLandingFromDetail()">← Back to home</button>
+        <span class="backnav-sep" aria-hidden="true">·</span>
+        <button class="backbtn" id="detailBackListBtn" onclick="goToListFromDetail(currentDetailType)">Go to Hikes list</button>
+      </div>
       <p class="detail-title" id="detTitle">Mt. Manunggal Trail</p>
       <p class="detail-sub" id="detSub">Balamban, Cebu · Sat, Jul 4</p>
     </div>
@@ -1119,6 +1144,10 @@
           <div class="infoline"><span class="k">Venue</span><span class="v">Babag Ridge, Cebu City</span></div>
         </div>
         <div class="section">
+          <h3>Organizer</h3>
+          <div class="infoline"><span class="k">Organizer</span><span class="v">Tabacolan Trail Runners</span></div>
+        </div>
+        <div class="section">
           <div class="note">Plan ahead: nearest airport is Mactan-Cebu (CEB). Race weekend falls on a long weekend, so flights and Airbnbs in the area tend to fill up by 6–8 weeks out.</div>
         </div>
         <div class="ctarow">
@@ -1144,21 +1173,28 @@
 </div>
 
 <script>
-  let lastFeed = 'hikes';
+  // currentListMode tracks which page of the Hikes/Races pager is showing.
+  // It's a sub-state of the single 'list' screen now (see the pager code
+  // near initSwipeNav below), not a top-level screen of its own.
+  let currentListMode = 'hikes';
   let currentQuery = '';
-  const SEARCH_INPUT_IDS = ['heroSearchInput', 'hikesSearchInput', 'racesSearchInput'];
+  const SEARCH_INPUT_IDS = ['heroSearchInput', 'listSearchInput'];
 
   // ---------- back-button / history integration ----------
-  // Maps each screen to a "depth". landing is the root; hikes/races sit
-  // one level in (siblings of each other — switching between them is a
-  // lateral move, not a deeper one); detail sits one level deeper still.
-  // We push a real history entry whenever depth increases, so the
-  // phone's hardware/gesture back button (which fires a native
-  // `popstate`) naturally lands on the previous layer instead of
-  // leaving the page entirely.
-  const SCREEN_DEPTH = { landing:0, hikes:1, races:1, detail:2 };
+  // Maps each screen to a "depth". landing is the root; list (which
+  // internally hosts both Hikes and Races as a swipeable pager) sits one
+  // level in; detail sits one level deeper still. We push a real history
+  // entry whenever depth increases, so the phone's hardware/gesture back
+  // button (which fires a native `popstate`) naturally lands on the
+  // previous layer instead of leaving the page entirely.
+  const SCREEN_DEPTH = { landing:0, list:1, detail:2 };
   let currentDepth = 0;
   let currentDetailType = 'hike';
+  // id of the event currently shown on the detail screen — set by
+  // openDetail() so the right event's data (not just its type) can be
+  // restored on back/forward navigation. Looked up against
+  // window.trailheadEvents, which is indexed by this same id.
+  let currentDetailEventId = null;
 
   // The phone's hardware back button only reaches us via a real
   // browser `popstate`, which needs `history.pushState` to have
@@ -1217,9 +1253,186 @@
     currentQuery = '';
     syncSearchInputs();
     applyFilters();
-    const activeInput = document.getElementById(lastFeed + 'SearchInput');
+    hideSearchPreview();
+    const activeScreen = document.querySelector('.screen:not(.hide)');
+    const activeId = (activeScreen && activeScreen.id === 'screen-landing') ? 'heroSearchInput' : 'listSearchInput';
+    const activeInput = document.getElementById(activeId);
     if(activeInput) activeInput.focus();
   }
+
+  // ---- LIVE SEARCH PREDICTION (landing hero search) ----------------
+  // As soon as someone starts typing in the hero search bar, this shows
+  // a short "here's what that's probably going to find" preview pulled
+  // straight from the live event data (the same array loadEvents() puts
+  // on window.trailheadEvents), rather than making them jump into the
+  // Hikes/Races list first to find out if their search even matches
+  // anything.
+  let searchPreviewMatches = [];
+  let searchPreviewActiveIndex = -1;
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, ch => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[ch]));
+  }
+
+  // Reads straight from the same .feed markup that filterFeed() uses to
+  // show/hide cards on the Hikes and Races screens — not a separate data
+  // source — so "does this word match" is answered identically everywhere
+  // it's asked. matchText mirrors filterFeed's own check (el.textContent,
+  // lowercased) so a query can never match here and miss there, or vice
+  // versa.
+  function collectSearchableCards(){
+    const cards = [];
+    ['hikes', 'races'].forEach(mode => {
+      const feed = document.querySelector('#screen-' + mode + ' .feed');
+      if(!feed) return;
+      let dateLabel = '';
+      Array.from(feed.children).forEach(el => {
+        if(el.classList.contains('datedivider')){
+          const span = el.querySelector('span');
+          dateLabel = span ? span.textContent.trim() : '';
+          return;
+        }
+        if(el.classList.contains('card') || el.classList.contains('justannounced')){
+          const titleEl = el.querySelector('.card-title');
+          const subEl = el.querySelector('.card-sub');
+          cards.push({
+            mode: mode,
+            title: titleEl ? titleEl.textContent.trim() : (mode === 'races' ? 'Race' : 'Hike'),
+            sub: subEl ? subEl.textContent.trim() : '',
+            dateLabel: dateLabel,
+            matchText: el.textContent.toLowerCase()
+          });
+        }
+      });
+    });
+    return cards;
+  }
+
+  function renderSearchPreview(value){
+    const box = document.getElementById('searchPreview');
+    const input = document.getElementById('heroSearchInput');
+    if(!box || !input) return;
+
+    // Only the landing hero search gets the live-prediction dropdown —
+    // the Hikes/Races screens already show live-filtered feeds below
+    // their own search bar, so a second floating list there would just
+    // duplicate what's already on screen.
+    const activeScreen = document.querySelector('.screen:not(.hide)');
+    if(!activeScreen || activeScreen.id !== 'screen-landing'){
+      hideSearchPreview();
+      return;
+    }
+
+    const q = (value || '').trim().toLowerCase();
+    searchPreviewActiveIndex = -1;
+    if(!q){
+      hideSearchPreview();
+      return;
+    }
+
+    // Universal search: matches from both Hikes and Races, using the
+    // exact same substring test filterFeed() applies on those screens.
+    const allMatches = collectSearchableCards().filter(c => c.matchText.includes(q));
+    searchPreviewMatches = allMatches.slice(0, 5);
+
+    if(allMatches.length === 0){
+      box.innerHTML = `<div class="sp-empty">No hikes or races match “${escapeHtml(value.trim())}” yet.</div>`;
+    } else {
+      const itemsHtml = searchPreviewMatches.map((c, i) => {
+        const typeClass = c.mode === 'races' ? 'race' : 'hike';
+        const typeLabel = c.mode === 'races' ? 'Race' : 'Hike';
+        const meta = [c.dateLabel, c.sub].filter(Boolean).join(' · ');
+        return `
+          <button type="button" class="sp-item" role="option" data-idx="${i}" onclick="chooseSearchPreviewItem(${i})">
+            <span class="sp-dot ${typeClass}"></span>
+            <span class="sp-body">
+              <span class="sp-title">${escapeHtml(c.title)}</span>
+              <span class="sp-meta">${escapeHtml(meta)}${meta ? ' · ' : ''}${typeLabel}</span>
+            </span>
+          </button>`;
+      }).join('');
+
+      // Two separate "see all" links when a query hits both types, so
+      // "universal" still resolves to the right single-type screen
+      // (Hikes stays hikes-only, Races stays races-only) instead of
+      // guessing which one the person meant.
+      const hikeCount = allMatches.filter(c => c.mode === 'hikes').length;
+      const raceCount = allMatches.filter(c => c.mode === 'races').length;
+      let viewAllHtml = '';
+      if(hikeCount > 0) viewAllHtml += `<button type="button" class="sp-viewall" onclick="openList('hikes')">See ${hikeCount} hike${hikeCount === 1 ? '' : 's'} →</button>`;
+      if(raceCount > 0) viewAllHtml += `<button type="button" class="sp-viewall" onclick="openList('races')">See ${raceCount} race${raceCount === 1 ? '' : 's'} →</button>`;
+
+      box.innerHTML = itemsHtml + viewAllHtml;
+    }
+
+    box.classList.remove('hide');
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function hideSearchPreview(){
+    const box = document.getElementById('searchPreview');
+    const input = document.getElementById('heroSearchInput');
+    if(box){ box.classList.add('hide'); box.innerHTML = ''; }
+    if(input) input.setAttribute('aria-expanded', 'false');
+    searchPreviewMatches = [];
+    searchPreviewActiveIndex = -1;
+  }
+
+  function highlightSearchPreviewItem(){
+    const box = document.getElementById('searchPreview');
+    if(!box) return;
+    box.querySelectorAll('.sp-item').forEach((el, i) => {
+      el.classList.toggle('is-active', i === searchPreviewActiveIndex);
+    });
+  }
+
+  // Jumps into the matching card's own tab (Hikes or Races) — never the
+  // other one — with the typed query already applied via the shared
+  // currentQuery/search-input sync, so that screen lands already
+  // filtered down to the same result set the preview showed.
+  function chooseSearchPreviewItem(idx){
+    const c = searchPreviewMatches[idx];
+    if(!c) return;
+    hideSearchPreview();
+    openList(c.mode);
+  }
+
+  function handleHeroSearchKeydown(e){
+    const box = document.getElementById('searchPreview');
+    const hasList = box && !box.classList.contains('hide') && searchPreviewMatches.length > 0;
+
+    if(e.key === 'Escape'){
+      hideSearchPreview();
+      return;
+    }
+    if(!hasList) return;
+
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      searchPreviewActiveIndex = Math.min(searchPreviewActiveIndex + 1, searchPreviewMatches.length - 1);
+      highlightSearchPreviewItem();
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      searchPreviewActiveIndex = Math.max(searchPreviewActiveIndex - 1, 0);
+      highlightSearchPreviewItem();
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      const idx = searchPreviewActiveIndex >= 0 ? searchPreviewActiveIndex : 0;
+      chooseSearchPreviewItem(idx);
+    }
+  }
+
+  // Outside taps/clicks close the dropdown without fighting the
+  // sp-item onclick handlers above (mousedown fires first, but the
+  // click that matters for choosing a result still lands normally).
+  document.addEventListener('click', (e) => {
+    const box = document.getElementById('searchPreview');
+    if(!box || box.classList.contains('hide')) return;
+    if(e.target.closest('#searchPreview') || e.target.closest('#heroSearchInput')) return;
+    hideSearchPreview();
+  });
 
   function applyFilters(){
     filterFeed('hikes');
@@ -1265,6 +1478,13 @@
     if(!empty){
       empty = document.createElement('div');
       empty.className = 'empty-state hide';
+      // aria-live so screen-reader users hear "No hikes match X" the
+      // moment typing filters a feed to zero — otherwise the list just
+      // silently disappears with no announced reason. role="status" +
+      // polite matches WCAG 4.1.3 (Status Messages) for this kind of
+      // non-urgent, request-driven update.
+      empty.setAttribute('role', 'status');
+      empty.setAttribute('aria-live', 'polite');
       feed.appendChild(empty);
     }
     if(q && !anyMatch){
@@ -1277,6 +1497,7 @@
   }
 
   function showScreen(name, transition, historyMode){
+    hideSearchPreview();
     const nextEl = document.getElementById('screen-' + name);
     const prevEl = document.querySelector('.screen:not(.hide)');
 
@@ -1322,8 +1543,6 @@
       nextEl.classList.remove('hide');
     }
 
-    if(name === 'hikes' || name === 'races') lastFeed = name;
-
     // historyMode 'none' means this call is a *reaction* to a popstate
     // event or an internal goBack() (the stack is already correct) —
     // we must not push/replace again or we'd create a duplicate/broken
@@ -1331,7 +1550,8 @@
     if(historyMode !== 'none'){
       const newDepth = SCREEN_DEPTH[name];
       const state = { screen:name, depth:newDepth };
-      if(name === 'detail'){ state.mode = currentDetailType; state.feed = lastFeed; }
+      if(name === 'detail'){ state.mode = currentDetailType; state.feed = currentListMode; state.eventId = currentDetailEventId; }
+      if(name === 'list'){ state.mode = currentListMode; }
       if(newDepth > currentDepth){
         navStack.push(state);
         if(historyAvailable){
@@ -1366,8 +1586,10 @@
     navStack.pop();
     const prevState = navStack[navStack.length - 1];
     if(prevState.screen === 'detail'){
-      setDetailMode(prevState.mode || 'hike');
-      if(prevState.feed) lastFeed = prevState.feed;
+      setDetailMode(prevState.mode || 'hike', getEventById(prevState.eventId));
+      if(prevState.feed) setListMode(prevState.feed, { animate:false, force:true });
+    } else if(prevState.screen === 'list' && prevState.mode){
+      setListMode(prevState.mode, { animate:false, force:true });
     }
     showScreen(prevState.screen, 'pop', 'none');
     currentDepth = prevState.depth;
@@ -1396,8 +1618,10 @@
     const prevState = navStack[navStack.length - 1];
     const transition = prevState.depth < currentDepth ? 'pop' : (prevState.depth > currentDepth ? 'push' : null);
     if(prevState.screen === 'detail'){
-      setDetailMode(prevState.mode || 'hike');
-      if(prevState.feed) lastFeed = prevState.feed;
+      setDetailMode(prevState.mode || 'hike', getEventById(prevState.eventId));
+      if(prevState.feed) setListMode(prevState.feed, { animate:false, force:true });
+    } else if(prevState.screen === 'list' && prevState.mode){
+      setListMode(prevState.mode, { animate:false, force:true });
     }
     showScreen(prevState.screen, transition, 'none');
     currentDepth = prevState.depth;
@@ -1563,16 +1787,63 @@
     if(overlay && overlay.classList.contains('show')) closeStatInfo();
   });
 
-  function openDetail(type){
-    setDetailMode(type);
+  // Looks up a specific event by the id assigned in the loadEvents()
+  // callback (see SPRINT 1 DATA LAYER below). Returns undefined if the
+  // event can't be found (e.g. stale id, data not loaded yet) — callers
+  // fall back to a generic placeholder in that case rather than erroring.
+  function getEventById(id){
+    if(id === null || id === undefined) return undefined;
+    return (window.trailheadEvents || []).find(ev => ev._id === id);
+  }
+
+  // `id` is the specific event's id (see getEventById) — this is what
+  // makes tapping a card open THAT card's event instead of always
+  // reopening whichever event the detail screen happened to show last.
+  // Two explicit, deterministic exits from the detail screen — used
+  // instead of a single ambiguous "back" button because a detail page
+  // can be reached two different ways (tapping a Featured Events card
+  // straight from landing, which never visits the list screen at all,
+  // or tapping a card inside the Hikes/Races list). Both buttons route
+  // through the normal showScreen() push/replace logic, so browser/
+  // hardware back from whichever screen they land on keeps behaving
+  // correctly afterward.
+  function goToLandingFromDetail(){
+    showScreen('landing', 'pop');
+  }
+
+  function goToListFromDetail(type){
+    currentListMode = type;
+    setListMode(type, { animate:false, force:true });
+    showScreen('list', 'pop');
+  }
+
+  function openDetail(type, id){
+    currentDetailEventId = (id === undefined) ? null : id;
+    setDetailMode(type, getEventById(currentDetailEventId));
     showScreen('detail', 'push');
   }
 
-  function setDetailMode(type){
+  function formatCutoff(raw){
+    if(!raw) return '';
+    const d = new Date(raw.replace(' ', 'T'));
+    if(isNaN(d)) return raw;
+    const datePart = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(':00', '');
+    return `${datePart} · ${timePart}`;
+  }
+
+  function infoline(label, value){
+    return value ? `<div class="infoline"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>` : '';
+  }
+
+  // type: 'hike' | 'race'. ev: the specific event object (optional —
+  // if omitted, the screen keeps its structural mode-switch but skips
+  // filling in event-specific text, since there's nothing to show yet).
+  function setDetailMode(type, ev){
     currentDetailType = type;
     const isHike = type === 'hike';
-    const backBtn = document.getElementById('detailBackBtn');
-    if(backBtn) backBtn.textContent = isHike ? '← Back to Hikes list' : '← Back to Races list';
+    const listBtn = document.getElementById('detailBackListBtn');
+    if(listBtn) listBtn.textContent = isHike ? 'Go to Hikes list' : 'Go to Races list';
     document.getElementById('hikeContent').classList.toggle('hide', !isHike);
     document.getElementById('raceContent').classList.toggle('hide', isHike);
     document.getElementById('screen-detail').classList.toggle('mode-hike', isHike);
@@ -1583,40 +1854,91 @@
     const title = document.getElementById('detTitle');
     const sub = document.getElementById('detSub');
 
-    if(isHike){
-      line.setAttribute('stroke', '#235E78');
-      grid.innerHTML = `
-        <div class="stat"><div class="v">6.4 km</div><div class="l">Distance</div></div>
-        <div class="stat"><div class="v">320 m</div><div class="l">Elev. gain</div></div>
-        <div class="stat"><div class="v">Moderate</div><div class="l">Difficulty</div></div>`;
-      title.textContent = 'Mt. Manunggal Trail';
-      sub.textContent = 'Balamban, Cebu · Sat, Jul 4';
-    } else {
-      line.setAttribute('stroke', '#F2611B');
-      grid.innerHTML = `
-        <div class="stat"><div class="v">126</div><div class="l">Days to go</div></div>
-        <div class="stat"><div class="v">42K</div><div class="l">Max distance</div></div>
-        <div class="stat"><div class="v">Open</div><div class="l">Reg. status</div></div>`;
-      title.textContent = 'Babag Ridge Run';
-      sub.textContent = 'Cebu City · Sep 5, 2026';
+    line.setAttribute('stroke', isHike ? '#235E78' : '#F2611B');
+    if(!ev){
+      // No event resolved yet (e.g. data still loading) — leave the
+      // stat grid/title/sub as-is rather than showing stale numbers.
+      return;
     }
-  }
 
-  // The chip row and the app bar are both position:sticky at the top
-  // of their scroll container. Left alone, they'd both pin to the exact
-  // same y=0 and the chip row (later in the DOM) would climb up and
-  // cover the app bar — hiding the search bar. Instead, measure the
-  // app bar's real rendered height and use that as the chip row's
-  // sticky offset, so it docks directly beneath the app bar and the
-  // search bar stays visible and sticky at all scroll positions.
-  function syncStickyOffsets(){
-    document.querySelectorAll('.screen').forEach(screen => {
-      const appbar = screen.querySelector('.appbar');
-      const chiprow = screen.querySelector('.chiprow');
-      if(appbar && chiprow){
-        chiprow.style.top = appbar.offsetHeight + 'px';
+    title.textContent = ev.title || (isHike ? 'Untitled hike' : 'Untitled race');
+
+    const d = new Date(ev.date + 'T00:00:00');
+    const dateLabel = isNaN(d) ? '' : d.toLocaleDateString('en-US',
+      isHike ? { weekday: 'short', month: 'short', day: 'numeric' }
+             : { month: 'short', day: 'numeric', year: 'numeric' });
+    sub.textContent = [ev.location_detail || ev.area, dateLabel].filter(Boolean).join(' · ');
+
+    if(isHike){
+      grid.innerHTML = `
+        <div class="stat"><div class="v">${ev.distance_km ? escapeHtml(ev.distance_km) + ' km' : '—'}</div><div class="l">Distance</div></div>
+        <div class="stat"><div class="v">${ev.elev_gain_m ? escapeHtml(ev.elev_gain_m) + ' m' : '—'}</div><div class="l">Elev. gain</div></div>
+        <div class="stat"><div class="v">${escapeHtml(ev.difficulty) || '—'}</div><div class="l">Difficulty</div></div>`;
+
+      const logisticsLines = [
+        infoline('Meetup point', ev.meetup_point),
+        infoline('Meetup time', ev.meetup_time),
+        infoline('RSVP cut-off', formatCutoff(ev.rsvp_cutoff)),
+        infoline('Fee', ev.fee ? `₱${ev.fee} / pax` : '')
+      ].join('');
+      const logisticsSection = document.querySelector('#hikeContent .section:nth-of-type(1)');
+      if(logisticsSection) logisticsSection.innerHTML = `<h3>Logistics</h3>${logisticsLines || infoline('Details', 'To be announced')}`;
+
+      const organizerLines = [
+        infoline('Group', ev.organizer),
+        infoline('Contact', ev.contact)
+      ].join('');
+      const organizerSection = document.querySelector('#hikeContent .section:nth-of-type(2)');
+      if(organizerSection) organizerSection.innerHTML = `<h3>Organizer</h3>${organizerLines || infoline('Group', 'Not yet listed')}`;
+
+      const noteSection = document.querySelector('#hikeContent .section:nth-of-type(3)');
+      if(noteSection){
+        noteSection.style.display = ev.notes ? '' : 'none';
+        if(ev.notes) noteSection.innerHTML = `<div class="note">${escapeHtml(ev.notes)}</div>`;
       }
-    });
+    } else {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const daysToGo = isNaN(d) ? null : daysBetween(today, d);
+      const distList = (ev.distances || '').split('·').map(s => s.trim()).filter(Boolean);
+      let maxDistance = '—';
+      if(distList.length){
+        maxDistance = distList.reduce((max, cur) => {
+          const n = parseFloat(cur);
+          const maxN = parseFloat(max);
+          return (!isNaN(n) && (isNaN(maxN) || n > maxN)) ? cur : max;
+        }, distList[0]);
+      }
+
+      grid.innerHTML = `
+        <div class="stat"><div class="v">${daysToGo === null ? '—' : (daysToGo >= 0 ? daysToGo : 'Past')}</div><div class="l">Days to go</div></div>
+        <div class="stat"><div class="v">${escapeHtml(maxDistance)}</div><div class="l">Max distance</div></div>
+        <div class="stat"><div class="v">${escapeHtml(ev.reg_status) || '—'}</div><div class="l">Reg. status</div></div>`;
+
+      const distRows = distList.map(dn =>
+        `<div class="distrow"><span class="dname">${escapeHtml(dn)}</span><span class="dmeta">See registration page</span></div>`
+      ).join('');
+      const distSection = document.querySelector('#raceContent .section:nth-of-type(1)');
+      if(distSection) distSection.innerHTML = `<h3>Distances</h3>${distRows || `<div class="distrow"><span class="dname">TBA</span></div>`}`;
+
+      const eb = ev.early_bird_date ? new Date(ev.early_bird_date + 'T00:00:00') : null;
+      const ebLabel = (eb && !isNaN(eb)) ? eb.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      const regLines = [
+        infoline('Status', ev.reg_status),
+        infoline('Early bird ends', ebLabel),
+        infoline('Venue', ev.venue)
+      ].join('');
+      const regSection = document.querySelector('#raceContent .section:nth-of-type(2)');
+      if(regSection) regSection.innerHTML = `<h3>Registration</h3>${regLines || infoline('Status', 'To be announced')}`;
+
+      const organizerSection = document.querySelector('#raceContent .section:nth-of-type(3)');
+      if(organizerSection) organizerSection.innerHTML = `<h3>Organizer</h3>${infoline('Organizer', ev.organizer) || infoline('Organizer', 'Not yet listed')}`;
+
+      const noteSection = document.querySelector('#raceContent .section:nth-of-type(4)');
+      if(noteSection){
+        noteSection.style.display = ev.notes ? '' : 'none';
+        if(ev.notes) noteSection.innerHTML = `<div class="note">${escapeHtml(ev.notes)}</div>`;
+      }
+    }
   }
 
   // ---- CHIP ROW SCROLL FADES -----------------------------------
@@ -1626,8 +1948,8 @@
   function updateChipRowFade(row){
     if(!row) return;
     const maxScroll = row.scrollWidth - row.clientWidth;
-    const left = row.querySelector('.scroll-fade.left');
-    const right = row.querySelector('.scroll-fade.right');
+    const left = row.parentElement.querySelector('.scroll-fade.left');
+    const right = row.parentElement.querySelector('.scroll-fade.right');
     if(left) left.classList.toggle('show', row.scrollLeft > 4);
     if(right) right.classList.toggle('show', row.scrollLeft < maxScroll - 4);
   }
@@ -1642,69 +1964,281 @@
     });
   }
 
-  window.addEventListener('resize', syncStickyOffsets);
   window.addEventListener('resize', updateAllChipRowFades);
-  window.addEventListener('load', syncStickyOffsets);
-  window.addEventListener('load', updateAllChipRowFades);
-  if('ResizeObserver' in window){
-    document.querySelectorAll('.appbar').forEach(appbar => {
-      new ResizeObserver(syncStickyOffsets).observe(appbar);
+
+  // ---- WEEKEND EVENT-COUNT INDICATOR ------------------------------
+  // Cards are already shown soonest-first under per-day dividers, but
+  // that alone doesn't say how many of them share a weekend — two
+  // events on Sat/Sun look like two unrelated single-day entries. This
+  // reads each card's own data-date, groups cards by the Saturday that
+  // starts their weekend, and appends a plain "· N THIS WEEKEND" count
+  // onto the earliest divider covering that weekend — for any weekend
+  // with 2+ events, in both feeds, computed from what's actually on the
+  // page rather than typed by hand into the divider text.
+  // ---- HIKES DIVIDER FORMAT PARITY ---------------------------------
+  // Races' dividers never show a weekday name — a lone date reads as
+  // "SEP 5" and an adjacent Sat+Sun pair is pre-authored as one merged
+  // "SEP 5–6" range. Hikes' dividers were hand-typed as "SAT, JUL 4" /
+  // "SUN, JUL 12" instead, so the two feeds don't match. This brings
+  // hikes in line: it drops the weekday from single-day headers, and —
+  // so the fix isn't just cosmetic for today's placeholder data — it
+  // will also merge a real Saturday-then-Sunday pair of dividers into
+  // one "MON D–D" range header the same way races does, moving that
+  // Sunday's cards up under the merged divider.
+  function monthAbbr(d){
+    return d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  }
+
+  function normalizeDividerFormat(screenName){
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if(!feed) return;
+
+    // Group each divider with the date of the first item under it.
+    const entries = [];
+    let current = null;
+    Array.from(feed.children).forEach(el => {
+      if(el.classList.contains('datedivider')){
+        current = { divider: el, dateStr: null, items: [] };
+        entries.push(current);
+        return;
+      }
+      if(current && el.dataset && el.dataset.date){
+        if(!current.dateStr) current.dateStr = el.dataset.date;
+        current.items.push(el);
+      }
+    });
+
+    for(let i = 0; i < entries.length; i++){
+      const entry = entries[i];
+      if(!entry.dateStr) continue;
+      const d = new Date(entry.dateStr + 'T00:00:00');
+      if(isNaN(d)) continue;
+
+      const next = entries[i + 1];
+      if(d.getDay() === 6 && next && next.dateStr){
+        const nd = new Date(next.dateStr + 'T00:00:00');
+        const diffDays = Math.round((nd - d) / 86400000);
+        if(!isNaN(nd) && diffDays === 1){
+          // Saturday directly followed by its Sunday — merge into one
+          // race-style range divider and fold the Sunday cards up into it.
+          const span = entry.divider.querySelector('span');
+          span.textContent = `${monthAbbr(d)} ${d.getDate()}\u2013${nd.getDate()}`;
+          next.items.forEach(it => feed.insertBefore(it, next.divider));
+          next.divider.remove();
+          entries.splice(i + 1, 1);
+          continue;
+        }
+      }
+
+      // No merge needed — just drop the weekday to match races' format.
+      const span = entry.divider.querySelector('span');
+      if(span && !span.textContent.includes('\u2013')){
+        span.textContent = `${monthAbbr(d)} ${d.getDate()}`;
+      }
+    }
+  }
+
+  function getWeekendKey(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d)) return null;
+    const day = d.getDay(); // 0 = Sun, 6 = Sat
+    if(day !== 0 && day !== 6) return null; // weekdays don't get a weekend count
+    const saturday = new Date(d);
+    if(day === 0) saturday.setDate(d.getDate() - 1); // Sunday belongs to the Saturday before it
+    return saturday.toISOString().slice(0, 10);
+  }
+
+  function annotateWeekendCounts(screenName, itemLabel){
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if(!feed) return;
+
+    let currentDivider = null;
+    const dividersByWeekend = {};
+    Array.from(feed.children).forEach(el => {
+      if(el.classList.contains('datedivider')){
+        currentDivider = el;
+        return;
+      }
+      if(!el.dataset || !el.dataset.date) return;
+      const key = getWeekendKey(el.dataset.date);
+      if(!key) return;
+      if(!dividersByWeekend[key]) dividersByWeekend[key] = { divider: currentDivider, count: 0 };
+      dividersByWeekend[key].count += 1;
+    });
+
+    Object.values(dividersByWeekend).forEach(({ divider, count }) => {
+      if(!divider || count < 2) return; // only worth flagging when it's actually more than one event
+      const span = divider.querySelector('span');
+      if(!span || span.textContent.includes('THIS WEEKEND')) return; // idempotent if ever re-run
+      span.textContent = span.textContent.trim() + ` · ${count} ${itemLabel} THIS WEEKEND`;
     });
   }
 
-  // ---- SWIPE NAV: hikes <-> races -----------------------------
-  // Hikes screen: swipe right-to-left (finger travels leftward) -> races.
-  // Races screen: swipe left-to-right (finger travels rightward) -> hikes.
-  // Only fires from those two screens, not landing/detail. Ignores
-  // touches that start inside .chiprow since that row scrolls
-  // horizontally on its own and would otherwise fight this gesture.
+  // NOTE: normalizeDividerFormat() and annotateWeekendCounts() are now
+  // invoked from the data-loading script below, right after the real
+  // feed content is rendered — not here against the (now-removed)
+  // static markup. See "CENTRAL SWITCH" section near the bottom.
+  window.addEventListener('load', updateAllChipRowFades);
+
+  // ---- HIKES <-> RACES PAGER --------------------------------------
+  // The header (wordmark, tabs, search) lives outside .listTrack and
+  // never receives a transform, so it never moves. Only .listTrack
+  // (the two .list-page's side by side) slides — on a tab tap it
+  // animates via the CSS transition on .list-track; on a touch drag
+  // it's moved 1:1 with the finger every touchmove frame, and the
+  // tabs' color + the search placeholder are updated continuously via
+  // updateHeaderForProgress so they visibly track the swipe too,
+  // rather than snapping only once the gesture ends.
+  const LIST_PLACEHOLDERS = {
+    hikes: 'Search hikes, trails, organizers...',
+    races: 'Search races, organizers...'
+  };
+
+  function pctForMode(mode){ return mode === 'races' ? -50 : 0; }
+
+  // Snaps the pager + header to a fully-settled state for `mode`.
+  // Used by tab taps, swipe release, and history restoration alike.
+  function settleListTrack(mode, animate){
+    const track = document.getElementById('listTrack');
+    if(track){
+      track.style.transition = animate ? '' : 'none';
+      track.style.transform = `translateX(${pctForMode(mode)}%)`;
+      if(!animate) void track.offsetWidth; // flush so a later animated call isn't eaten by this one
+    }
+    updateHeaderForProgress(mode === 'races' ? 1 : 0);
+  }
+
+  // progress: 0 = fully Hikes, 1 = fully Races. Called continuously
+  // while dragging, and once on settle — same function either way, so
+  // the header never has a separate "final" code path that could
+  // visually disagree with what was shown mid-drag.
+  function updateHeaderForProgress(progress){
+    const tabHikes = document.getElementById('tabHikes');
+    const tabRaces = document.getElementById('tabRaces');
+    const appbar = document.getElementById('listAppbar');
+    if(appbar) appbar.style.setProperty('--tab-progress', progress);
+    if(tabHikes) tabHikes.classList.toggle('active', progress < 0.5);
+    if(tabRaces) tabRaces.classList.toggle('active', progress >= 0.5);
+
+    const input = document.getElementById('listSearchInput');
+    if(input){
+      const wantMode = progress < 0.5 ? 'hikes' : 'races';
+      if(input.dataset.mode !== wantMode){
+        input.dataset.mode = wantMode;
+        input.dataset.placeholderText = LIST_PLACEHOLDERS[wantMode];
+        // Don't stomp on the placeholder while the person is mid-typing
+        // focus (initSearchPlaceholders already blanked it in that case).
+        if(document.activeElement !== input){
+          input.setAttribute('placeholder', LIST_PLACEHOLDERS[wantMode]);
+        }
+      }
+    }
+  }
+
+  // Called by the mode-tab tap handlers, and internally on swipe
+  // release / history restore. `force` re-settles even if the mode
+  // isn't changing (used to snap a rubber-banded drag back to rest).
+  function setListMode(mode, opts){
+    opts = opts || {};
+    const changed = mode !== currentListMode;
+    if(!changed && !opts.force) return;
+    currentListMode = mode;
+    settleListTrack(mode, opts.animate !== false);
+    requestAnimationFrame(updateAllChipRowFades);
+
+    // Switching tabs is a lateral move within the same 'list' screen —
+    // replace the current history entry's mode rather than pushing a
+    // new one, matching how the old hikes/races screens behaved.
+    if(changed && navStack.length){
+      const top = navStack[navStack.length - 1];
+      if(top && top.screen === 'list'){
+        top.mode = mode;
+        if(historyAvailable){
+          try{ history.replaceState(top, ''); } catch(err){ historyAvailable = false; }
+        }
+      }
+    }
+  }
+
+  // Full screen-level navigation into the list screen (from landing),
+  // landing on the requested tab with no pager animation of its own —
+  // the screen-level push transition (see showScreen) already provides
+  // the motion.
+  function openList(mode){
+    setListMode(mode, { animate:false, force:true });
+    showScreen('list', 'push');
+  }
+
+  // ---- SWIPE: drag the pager, header stays put ---------------------
+  // Ignores touches starting inside .chiprow (that row scrolls
+  // horizontally on its own and would otherwise fight this gesture),
+  // and bails out of the gesture if the finger is moving mostly
+  // vertically (a normal list scroll instead of a page swipe).
   function initSwipeNav(){
-    const SWIPE_MIN_X = 60;   // minimum horizontal travel to count as a swipe
-    const SWIPE_MAX_Y = 75;   // vertical drift allowed before we treat it as a scroll instead
-    const SWIPE_MAX_MS = 700; // gesture must complete within this window
-    let startX = 0, startY = 0, startT = 0, tracking = false;
+    const RUBBER = 0.3; // resistance past either end of the pager
+    let startX = 0, startY = 0, dragging = false, deciding = false, baseX = 0;
+    let track, viewport;
 
     function onTouchStart(e){
-      if(e.touches.length !== 1){ tracking = false; return; }
-      if(e.target.closest('.chiprow')){ tracking = false; return; }
+      if(e.touches.length !== 1){ dragging = false; return; }
+      if(e.target.closest('.chiprow')){ dragging = false; return; }
       const activeScreen = document.querySelector('.screen:not(.hide)');
-      if(!activeScreen || (activeScreen.id !== 'screen-hikes' && activeScreen.id !== 'screen-races')){
-        tracking = false; return;
-      }
+      if(!activeScreen || activeScreen.id !== 'screen-list'){ dragging = false; return; }
+      track = document.getElementById('listTrack');
+      viewport = document.getElementById('listViewport');
+      if(!track || !viewport){ dragging = false; return; }
       const t = e.touches[0];
-      startX = t.clientX; startY = t.clientY; startT = Date.now();
-      tracking = true;
+      startX = t.clientX; startY = t.clientY;
+      baseX = pctForMode(currentListMode);
+      dragging = true; deciding = true;
+    }
+    function onTouchMove(e){
+      if(!dragging) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX, dy = t.clientY - startY;
+      if(deciding){
+        if(Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10){ dragging = false; return; }
+        if(Math.abs(dx) < 6) return;
+        deciding = false;
+        track.style.transition = 'none';
+      }
+      e.preventDefault(); // committed to a horizontal page swipe now
+      const vw = viewport.clientWidth || 1;
+      const rawPct = baseX + (dx / vw) * 50; // 50% of track width = 1 page
+      const clamped = rawPct > 0 ? rawPct * RUBBER
+                     : rawPct < -50 ? -50 + (rawPct + 50) * RUBBER
+                     : rawPct;
+      track.style.transform = `translateX(${clamped}%)`;
+      updateHeaderForProgress(Math.min(1, Math.max(0, -clamped / 50)));
     }
     function onTouchEnd(e){
-      if(!tracking) return;
-      tracking = false;
+      if(!dragging) return;
+      dragging = false;
+      if(deciding) return; // never committed to a horizontal drag
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      const dt = Date.now() - startT;
-      if(dt > SWIPE_MAX_MS || Math.abs(dx) < SWIPE_MIN_X || Math.abs(dy) > SWIPE_MAX_Y) return;
-      const activeScreen = document.querySelector('.screen:not(.hide)');
-      if(!activeScreen) return;
-      if(activeScreen.id === 'screen-hikes' && dx < 0){
-        showScreen('races', 'push');
-      } else if(activeScreen.id === 'screen-races' && dx > 0){
-        showScreen('hikes', 'pop');
-      }
+      const vw = viewport.clientWidth || 1;
+      const progress = Math.min(1, Math.max(0, -(baseX + (dx / vw) * 50) / 50));
+      setListMode(progress > 0.5 ? 'races' : 'hikes', { force:true });
     }
-    function onTouchCancel(){ tracking = false; }
+    function onTouchCancel(){
+      if(dragging && !deciding) setListMode(currentListMode, { force:true });
+      dragging = false;
+    }
 
     const app = document.querySelector('.app');
     app.addEventListener('touchstart', onTouchStart, { passive:true });
+    app.addEventListener('touchmove', onTouchMove, { passive:false });
     app.addEventListener('touchend', onTouchEnd, { passive:true });
     app.addEventListener('touchcancel', onTouchCancel, { passive:true });
   }
 
   // default state
   setDetailMode('hike');
+  settleListTrack(currentListMode, false);
   initSearchPlaceholders();
   initChipRowFades();
   initSwipeNav();
-  syncStickyOffsets();
   updateAllChipRowFades();
 </script>
 
@@ -1712,9 +2246,10 @@
   /* ============================================================
      SPRINT 1 — DATA LAYER
      Fetch / parse / merge event rows from the published Google
-     Sheet (two tabs: Hikes, Races). No UI wiring yet — this only
-     produces a clean, merged array of event objects, inspectable
-     via console. Rendering happens in Sprint 2.
+     Sheet (two tabs: Hikes, Races), then renders the result straight
+     into the Hikes/Races feeds. USE_LIVE_DATA below is the ONLY
+     thing that decides what appears in those tabs — there is no
+     separate hardcoded markup left to get out of sync with it.
      ============================================================ */
 
   // ---- CONFIG ------------------------------------------------
@@ -1727,7 +2262,7 @@
   //   Examples:
   //   https://utc-2-0.vercel.app/?live=true   → forces live Sheet data
   //   https://utc-2-0.vercel.app/?live=false  → forces placeholder data
-  const DEFAULT_USE_LIVE_DATA = false;
+  const DEFAULT_USE_LIVE_DATA = true; // LIVE: fetching real event data from the published Sheet
   const _liveParam = new URLSearchParams(window.location.search).get('live');
   const USE_LIVE_DATA = _liveParam === null
     ? DEFAULT_USE_LIVE_DATA
@@ -1922,7 +2457,9 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
       const dotClass = ev.type === 'race' ? 'race' : 'hike';
       const area = ev.area || '';
       return `
-        <div class="wp-item">
+        <div class="wp-item" role="button" tabindex="0"
+             onclick="openDetail('${dotClass}', ${ev._id})"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetail('${dotClass}', ${ev._id});}">
           <span class="wp-dot ${dotClass}"></span>
           <div class="wp-body">
             <p class="wp-title">${ev.title || 'Untitled event'}</p>
@@ -1932,7 +2469,327 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     }).join('');
   }
 
-  // ---- RUN (Sprint 1: console-only, no UI wiring yet) -----------
+  // ---- FEED RENDERING (Hikes/Races tabs) ---------------------------
+  // The single thing that decides what shows up in these two tabs is
+  // the `events` array loadEvents() returns — which itself is decided
+  // entirely by USE_LIVE_DATA above. There's no parallel hardcoded
+  // markup anymore, so there's nothing that can drift out of sync
+  // with the toggle.
+
+  function escapeHtml(str) {
+    return String(str ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function daysBetween(a, b) {
+    return Math.round((b - a) / 86400000);
+  }
+
+  const SPARK_HIKE = `<svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 16,26 34,14 50,18 66,6 84,12 100,8 120,16" fill="none" stroke="#235E78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const SPARK_RACE = `<svg class="spark" width="56" height="26" viewBox="0 0 120 36"><polyline points="0,30 18,16 36,20 54,8 72,14 90,6 108,16 120,12" fill="none" stroke="#F2611B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  function showFeedLoading(screenName) {
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if (feed) feed.innerHTML = `<div class="wp-empty">Loading events…</div>`;
+  }
+
+  function showFeedError(screenName) {
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if (feed) feed.innerHTML = `<div class="wp-empty">Couldn't load events. Try refreshing.</div>`;
+  }
+
+  function renderHikeCard(ev, today) {
+    const sub = [ev.location_detail || ev.area, ev.organizer ? 'by ' + ev.organizer : '']
+      .filter(Boolean).join(' · ');
+
+    const tags = [];
+    if (ev.distance_km) tags.push(`<span class="tag">${escapeHtml(ev.distance_km)} km</span>`);
+    if (ev.elev_gain_m) tags.push(`<span class="tag">${escapeHtml(ev.elev_gain_m)}m gain</span>`);
+    if (ev.difficulty) tags.push(`<span class="tag">${escapeHtml(ev.difficulty)}</span>`);
+    if (ev.cebu_flag === 'outside') tags.push(`<span class="tag outside">Outside Cebu</span>`);
+    if (ev.rsvp_cutoff) {
+      const cutoff = new Date(ev.rsvp_cutoff.replace(' ', 'T'));
+      if (!isNaN(cutoff)) {
+        const days = daysBetween(today, cutoff);
+        if (days >= 0) tags.push(`<span class="tag urgent">${days} day${days === 1 ? '' : 's'} left to join</span>`);
+      }
+    }
+
+    return `
+      <div class="card" data-date="${escapeHtml(ev.date)}" onclick="openDetail('hike', ${ev._id})">
+        <div class="card-top">
+          <div>
+            <p class="card-title">${escapeHtml(ev.title)}</p>
+            <p class="card-sub">${escapeHtml(sub)}</p>
+          </div>
+          ${SPARK_HIKE}
+        </div>
+        <div class="tagrow">${tags.join('')}</div>
+      </div>`;
+  }
+
+  function renderRaceCard(ev, today) {
+    const d = new Date(ev.date + 'T00:00:00');
+    const cardDate = isNaN(d) ? '' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const sub = [ev.area, ev.organizer].filter(Boolean).join(' · ');
+
+    const tags = [];
+    if (ev.cebu_flag === 'outside') tags.push(`<span class="tag outside">Outside Cebu</span>`);
+    if (!isNaN(d)) {
+      const days = daysBetween(today, d);
+      if (days >= 0) tags.push(`<span class="tag far">${days} day${days === 1 ? '' : 's'} to go</span>`);
+    }
+    if (ev.distances) tags.push(`<span class="tag">${escapeHtml(ev.distances)}</span>`);
+    if (ev.reg_status) tags.push(`<span class="tag">${ev.reg_status === 'Open' ? 'Reg open' : escapeHtml(ev.reg_status)}</span>`);
+    if (ev.early_bird_date) {
+      const eb = new Date(ev.early_bird_date + 'T00:00:00');
+      if (!isNaN(eb)) {
+        const ebDays = daysBetween(today, eb);
+        if (ebDays >= 0 && ebDays <= 14) tags.push(`<span class="tag urgent">Early bird ends in ${ebDays}d</span>`);
+      }
+    }
+
+    return `
+      <div class="card" data-date="${escapeHtml(ev.date)}" onclick="openDetail('race', ${ev._id})">
+        <div class="card-top">
+          <div>
+            <p class="card-title">${escapeHtml(ev.title)}</p>
+            <p class="card-date">${cardDate}</p>
+            <p class="card-sub">${escapeHtml(sub)}</p>
+          </div>
+          ${SPARK_RACE}
+        </div>
+        <div class="tagrow">${tags.join('')}</div>
+      </div>`;
+  }
+
+  function renderJustAnnounced(ev, today) {
+    const d = new Date(ev.date + 'T00:00:00');
+    const dateLabel = isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const daysToGo = isNaN(d) ? '' : daysBetween(today, d);
+    const metaParts = [ev.area, dateLabel && daysToGo !== '' ? `${dateLabel} (${daysToGo} days to go)` : dateLabel]
+      .filter(Boolean).join(' · ');
+
+    return `
+      <div class="justannounced" data-date="${escapeHtml(ev.date)}" onclick="openDetail('race', ${ev._id})">
+        <p class="label">★ JUST ANNOUNCED</p>
+        <p class="card-title">${escapeHtml(ev.title)}</p>
+        <p class="card-sub" style="color:oklch(96% 0.015 55);">${escapeHtml(metaParts)}</p>
+      </div>`;
+  }
+
+  // Renders one feed from scratch: sorts by date, inserts a divider
+  // whenever the date changes, then hands off to normalizeDividerFormat
+  // (drops weekday names, merges an adjacent Sat+Sun pair into one
+  // range divider) and annotateWeekendCounts (adds "· N THIS WEEKEND").
+  function renderFeed(screenName, events, cardRenderer, itemLabel, opts = {}) {
+    const feed = document.querySelector('#screen-' + screenName + ' .feed');
+    if (!feed) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let pool = events.filter(ev => ev.date);
+    let announcedHtml = '';
+    if (opts.justAnnouncedMatcher) {
+      const idx = pool.findIndex(opts.justAnnouncedMatcher);
+      if (idx !== -1) {
+        announcedHtml = renderJustAnnounced(pool[idx], today);
+        pool = pool.slice(0, idx).concat(pool.slice(idx + 1));
+      }
+    }
+
+    const sorted = pool.slice().sort((a, b) => a.date.localeCompare(b.date));
+
+    if (sorted.length === 0 && !announcedHtml) {
+      feed.innerHTML = `<div class="wp-empty">No upcoming events right now — check back soon.</div>`;
+      return;
+    }
+
+    let html = announcedHtml;
+    let lastDate = null;
+    sorted.forEach(ev => {
+      if (ev.date !== lastDate) {
+        const d = new Date(ev.date + 'T00:00:00');
+        html += `<div class="datedivider"><span>${monthAbbr(d)} ${d.getDate()}</span><div class="line"></div></div>`;
+        lastDate = ev.date;
+      }
+      html += cardRenderer(ev, today);
+    });
+
+    feed.innerHTML = html;
+    normalizeDividerFormat(screenName);
+    annotateWeekendCounts(screenName, itemLabel);
+  }
+
+  // ---- CHIP FILTERS (Hikes/Races filter pills) ---------------------
+  // Each pill's data-filter value maps to a predicate below. Tapping a
+  // pill re-renders that tab's feed from the cached events for that
+  // type, filtered down to whatever the pill means, then re-applies
+  // any active search text on top (filterFeed already does that part).
+  const RACE_JUST_ANNOUNCED = ev => (ev.notes || '').toLowerCase().includes('just announced');
+
+  function toEventDate(ev) {
+    return new Date(ev.date + 'T00:00:00');
+  }
+
+  function startOfToday() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function addDays(d, n) {
+    const copy = new Date(d);
+    copy.setDate(copy.getDate() + n);
+    return copy;
+  }
+
+  const CHIP_PREDICATES = {
+    hikes: {
+      'all-upcoming': ev => toEventDate(ev) >= startOfToday(),
+      'this-week': ev => {
+        const [start, end] = getWeekRange(new Date());
+        const d = toEventDate(ev);
+        return d >= start && d <= end;
+      },
+      'next-2-weeks': ev => {
+        const today = startOfToday();
+        const d = toEventDate(ev);
+        return d >= today && d <= addDays(today, 14);
+      },
+      'cebu-only': ev => ev.cebu_flag === 'cebu',
+      'outside-cebu': ev => ev.cebu_flag === 'outside',
+      'beginner': ev => (ev.difficulty || '').toLowerCase() === 'easy'
+    },
+    races: {
+      'all-upcoming': ev => toEventDate(ev) >= startOfToday(),
+      'next-3-months': ev => {
+        const today = startOfToday();
+        const d = toEventDate(ev);
+        return d >= today && d <= addDays(today, 90);
+      },
+      '3-6-months': ev => {
+        const today = startOfToday();
+        const d = toEventDate(ev);
+        return d > addDays(today, 90) && d <= addDays(today, 180);
+      },
+      'cebu': ev => ev.cebu_flag === 'cebu',
+      'visayas-ph': ev => ev.cebu_flag === 'outside'
+    }
+  };
+
+  // Cached, unfiltered events per tab (populated once loadEvents()
+  // resolves) so chip taps can re-slice them without re-fetching.
+  let hikeEventsCache = [];
+  let raceEventsCache = [];
+  const chipFilters = { hikes: 'all-upcoming', races: 'all-upcoming' };
+
+  // ---- LANDING PANEL FACET TICKER --------------------------------
+  // Cycles the one-line stat under each landing panel through a few
+  // real counts (reusing CHIP_PREDICATES so the panel never says
+  // anything the list screen itself wouldn't back up), crossfading
+  // between them on a fixed clock instead of scrolling text —
+  // scrolling/marquee text can't be paused and is hard to read at a
+  // fixed pace. Respects prefers-reduced-motion by skipping the fade
+  // (an instant text swap instead of a crossfade) — the stat still
+  // cycles through every facet either way, it just never animates
+  // doing so, so it can't get stuck showing only the first value.
+  const PANEL_FACET_ROTATE_MS = 3600;
+  const PANEL_FACET_FADE_MS = 400;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const panelFacetTimers = {};
+
+  function countMatches(cache, predicate) {
+    return cache.filter(ev => ev.date && !isNaN(toEventDate(ev)) && predicate(ev)).length;
+  }
+
+  function computeHikeFacets() {
+    const facets = [];
+    const wk = countMatches(hikeEventsCache, CHIP_PREDICATES.hikes['this-week']);
+    const cebu = countMatches(hikeEventsCache, CHIP_PREDICATES.hikes['cebu-only']);
+    const beginner = countMatches(hikeEventsCache, CHIP_PREDICATES.hikes['beginner']);
+    if (wk > 0) facets.push(`${wk} this week`);
+    if (cebu > 0) facets.push(`${cebu} Cebu-only`);
+    if (beginner > 0) facets.push(`${beginner} beginner-friendly`);
+    return facets.length ? facets : [`${hikeEventsCache.length} upcoming`];
+  }
+
+  function computeRaceFacets() {
+    const facets = [];
+    const upcoming = countMatches(raceEventsCache, CHIP_PREDICATES.races['all-upcoming']);
+    const soon = countMatches(raceEventsCache, CHIP_PREDICATES.races['next-3-months']);
+    const cebu = countMatches(raceEventsCache, CHIP_PREDICATES.races['cebu']);
+    if (upcoming > 0) facets.push(`${upcoming} open for registration`);
+    if (soon > 0) facets.push(`${soon} in the next 3 months`);
+    if (cebu > 0) facets.push(`${cebu} in Cebu`);
+    return facets.length ? facets : [`${raceEventsCache.length} upcoming`];
+  }
+
+  function startPanelFacetTicker(lineId, facets) {
+    const line = document.getElementById(lineId);
+    if (!line || facets.length === 0) return;
+    if (panelFacetTimers[lineId]) clearInterval(panelFacetTimers[lineId]);
+
+    let i = 0;
+    line.textContent = facets[0];
+    line.style.opacity = '.85';
+
+    if (facets.length < 2) return; // nothing else to rotate through
+
+    // Reduced motion means skip the fade, not stop updating — the text
+    // still cycles through every facet, it just swaps instantly instead
+    // of crossfading, so the stat line never gets stuck showing only
+    // the first value forever.
+    panelFacetTimers[lineId] = setInterval(() => {
+      i = (i + 1) % facets.length;
+      if (prefersReducedMotion) {
+        line.textContent = facets[i];
+        return;
+      }
+      line.style.opacity = '0';
+      setTimeout(() => {
+        line.textContent = facets[i];
+        line.style.opacity = '.85';
+      }, PANEL_FACET_FADE_MS);
+    }, PANEL_FACET_ROTATE_MS);
+  }
+
+  function updateLandingFacets() {
+    startPanelFacetTicker('hikesFacetLine', computeHikeFacets());
+    startPanelFacetTicker('racesFacetLine', computeRaceFacets());
+  }
+
+  function renderFeedFiltered(screenName) {
+    const cache = screenName === 'hikes' ? hikeEventsCache : raceEventsCache;
+    const predicate = CHIP_PREDICATES[screenName] && CHIP_PREDICATES[screenName][chipFilters[screenName]];
+    const filtered = predicate
+      ? cache.filter(ev => ev.date && !isNaN(toEventDate(ev)) && predicate(ev))
+      : cache;
+
+    if (screenName === 'hikes') {
+      renderFeed('hikes', filtered, renderHikeCard, 'HIKES');
+    } else {
+      renderFeed('races', filtered, renderRaceCard, 'RACES', { justAnnouncedMatcher: RACE_JUST_ANNOUNCED });
+    }
+    filterFeed(screenName); // re-apply any active search text on top
+  }
+
+  // Called via onclick="selectChip(this, 'hikes'|'races')" on each pill.
+  function selectChip(chipEl, screenName) {
+    const row = chipEl.closest('.chiprow');
+    if (!row) return;
+    row.querySelectorAll('.chip').forEach(c => c.classList.remove('active', 'hikes', 'races'));
+    chipEl.classList.add('active', screenName);
+    chipFilters[screenName] = chipEl.dataset.filter;
+    renderFeedFiltered(screenName);
+  }
+
+  // ---- RUN --------------------------------------------------------
+  showFeedLoading('hikes');
+  showFeedLoading('races');
+
   loadEvents()
     .then(events => {
       console.log(`[MASL.ph] Loaded ${events.length} events (USE_LIVE_DATA=${USE_LIVE_DATA})`);
@@ -1946,14 +2803,29 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
         console.log("[MASL.ph] No data issues found — all rows have required fields.");
       }
 
+      // Give every event a stable id (its position in this merged
+      // array) so a tapped card can open its own detail view instead
+      // of always falling back to the same default event — cards pass
+      // this id to openDetail(), which looks it up via getEventById().
+      events.forEach((ev, idx) => { ev._id = idx; });
+
       // Exposed globally so it can be inspected/reused from the
-      // browser console or from Sprint 2's render layer.
+      // browser console.
       window.trailheadEvents = events;
 
+      hikeEventsCache = events.filter(ev => ev.type === 'hike');
+      raceEventsCache = events.filter(ev => ev.type === 'race');
+
+      renderFeedFiltered('hikes'); // respects whichever pill starts active
+      renderFeedFiltered('races');
+
       renderWeekPreview(events);
+      updateLandingFacets();
     })
     .catch(err => {
       console.error("[MASL.ph] Failed to load events:", err);
+      showFeedError('hikes');
+      showFeedError('races');
       const listEl = document.getElementById('weekPreviewList');
       if (listEl) {
         listEl.innerHTML = `<div class="wp-empty">Couldn't load featured events.</div>`;
