@@ -2400,9 +2400,21 @@ hike,Mt. Pulag Traverse,2026-08-01,Mt. Pulag,"Benguet (3D2N)",Northbound Expedit
   // event_name/race_date/etc. columns directly.
   function normalizeRaceRow(r) {
     const area = [r.town, r.province].filter(Boolean).join(', ') || r.region || '';
-    // Source dates come as "2026/07/19"; the rest of the app expects
-    // "2026-07-19" (validated and parsed with `new Date(date+'T00:00:00')`).
-    const toISODate = s => (s || '').trim().replace(/\//g, '-');
+    // Google Sheets writes real Date cells back out in whatever date
+    // order the spreadsheet's locale uses — this sheet publishes
+    // day-first ("19/07/2026"), not year-first like the original CSV
+    // upload ("2026/07/19"). Detect whichever side the 4-digit year is
+    // on rather than assuming one fixed order, so this keeps working
+    // even if the sheet's locale/format ever changes.
+    const toISODate = raw => {
+      if (!raw) return '';
+      const s = raw.trim();
+      let m = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/); // YYYY/MM/DD
+      if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+      m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); // DD/MM/YYYY
+      if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+      return s; // unrecognized shape — left as-is, validator will flag it
+    };
 
     return {
       type: 'race',
