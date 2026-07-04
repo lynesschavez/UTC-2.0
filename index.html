@@ -352,6 +352,7 @@
   }
   #screen-races .card-date{ color:var(--moss-warm); }
   .spark{ flex-shrink:0; }
+  .card-thumb{ width:48px; height:48px; border-radius:10px; object-fit:cover; flex-shrink:0; }
   .tagrow{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
   .tag{
     font-family:var(--mono);
@@ -873,6 +874,8 @@
 
   .detail-body{ padding:16px; }
   .bigspark{ width:100%; height:60px; margin-bottom:14px; }
+  .detail-photo{ width:100%; height:140px; object-fit:cover; border-radius:12px; margin-bottom:14px; display:block; }
+  .cta:disabled{ opacity:.45; cursor:not-allowed; }
   .statgrid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
   .stat{ background:var(--mist); border-radius:10px; padding:9px 6px; text-align:center; }
   .stat .v{ font-family:var(--mono); font-size:14px; font-weight:600; color:var(--char); }
@@ -886,6 +889,8 @@
   .infoline{ display:flex; justify-content:space-between; font-size:13px; padding:7px 0; border-bottom:1px solid var(--moss-line); }
   .infoline .k{ color:var(--char-soft); }
   .infoline .v{ font-weight:500; color:var(--char); text-align:right; }
+  .infoline .v.link{ text-decoration:none; color:var(--dawn-blue); }
+  #screen-detail.mode-race .infoline .v.link{ color:var(--flag-orange-2); }
   .distrow{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--moss-line); }
   .distrow .dname{ font-weight:600; font-size:13.5px; }
   .distrow .dmeta{ font-family:var(--mono); font-size:11px; color:var(--char-soft); }
@@ -1067,8 +1072,6 @@
         <div class="chip active races" data-filter="all-upcoming" onclick="selectChip(this,'races')">All upcoming</div>
         <div class="chip" data-filter="next-3-months" onclick="selectChip(this,'races')">Next 3 months</div>
         <div class="chip" data-filter="3-6-months" onclick="selectChip(this,'races')">3–6 months out</div>
-        <div class="chip" data-filter="cebu" onclick="selectChip(this,'races')">Cebu</div>
-        <div class="chip" data-filter="visayas-ph" onclick="selectChip(this,'races')">Visayas / PH</div>
       </div>
       <div class="scroll-fade left" aria-hidden="true"></div>
       <div class="scroll-fade right" aria-hidden="true"></div>
@@ -1096,7 +1099,8 @@
     </div>
 
     <div class="detail-body">
-      <svg class="bigspark" viewBox="0 0 400 60" preserveAspectRatio="none">
+      <img class="detail-photo hide" id="detailPhoto" alt="">
+      <svg class="bigspark" id="bigSparkWrap" viewBox="0 0 400 60" preserveAspectRatio="none">
         <polyline id="bigSparkLine" points="0,52 50,40 100,44 150,16 200,28 250,8 300,22 350,18 400,30" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
 
@@ -1151,7 +1155,7 @@
           <div class="note">Plan ahead: nearest airport is Mactan-Cebu (CEB). Race weekend falls on a long weekend, so flights and Airbnbs in the area tend to fill up by 6–8 weeks out.</div>
         </div>
         <div class="ctarow">
-          <button class="cta primary race">Go to registration</button>
+          <button class="cta primary race" id="raceRegBtn">Go to registration</button>
           <button class="cta secondary">Add to calendar</button>
         </div>
       </div>
@@ -1836,6 +1840,21 @@
     return value ? `<div class="infoline"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>` : '';
   }
 
+  // Same shape as infoline() but renders the value as an outbound link
+  // (registration pages, Facebook events) instead of plain text.
+  function infolineLink(label, url, linkText){
+    if(!url) return '';
+    return `<div class="infoline"><span class="k">${escapeHtml(label)}</span><a class="v link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(linkText || 'Open ↗')}</a></div>`;
+  }
+
+  // price_php of "0" means free entry; blank means unknown/unlisted.
+  function formatPrice(raw){
+    if(raw === undefined || raw === null || raw === '') return '';
+    const n = Number(raw);
+    if(isNaN(n)) return raw;
+    return n === 0 ? 'Free' : `₱${n.toLocaleString()}`;
+  }
+
   // type: 'hike' | 'race'. ev: the specific event object (optional —
   // if omitted, the screen keeps its structural mode-switch but skips
   // filling in event-specific text, since there's nothing to show yet).
@@ -1862,6 +1881,23 @@
     }
 
     title.textContent = ev.title || (isHike ? 'Untitled hike' : 'Untitled race');
+
+    // Real event photo (races only, when the sheet provides one) takes
+    // the sparkline's place rather than sitting alongside it — showing
+    // both a decorative fake chart and a real photo would compete.
+    const photoEl = document.getElementById('detailPhoto');
+    const sparkWrapEl = document.getElementById('bigSparkWrap');
+    if(photoEl && sparkWrapEl){
+      if(ev.image_url){
+        photoEl.src = ev.image_url;
+        photoEl.alt = ev.title || '';
+        photoEl.classList.remove('hide');
+        sparkWrapEl.classList.add('hide');
+      } else {
+        photoEl.classList.add('hide');
+        sparkWrapEl.classList.remove('hide');
+      }
+    }
 
     const d = new Date(ev.date + 'T00:00:00');
     const dateLabel = isNaN(d) ? '' : d.toLocaleDateString('en-US',
@@ -1925,13 +1961,30 @@
       const regLines = [
         infoline('Status', ev.reg_status),
         infoline('Early bird ends', ebLabel),
-        infoline('Venue', ev.venue)
+        infoline('Venue', ev.venue),
+        infoline('Price', formatPrice(ev.price_php)),
+        infolineLink('Registration', ev.registration_url, 'Sign up ↗'),
+        infolineLink('Facebook', ev.facebook_url, 'View event ↗')
       ].join('');
       const regSection = document.querySelector('#raceContent .section:nth-of-type(2)');
       if(regSection) regSection.innerHTML = `<h3>Registration</h3>${regLines || infoline('Status', 'To be announced')}`;
 
       const organizerSection = document.querySelector('#raceContent .section:nth-of-type(3)');
       if(organizerSection) organizerSection.innerHTML = `<h3>Organizer</h3>${infoline('Organizer', ev.organizer) || infoline('Organizer', 'Not yet listed')}`;
+
+      // "Go to registration" only does something once we actually have
+      // a URL for this event — otherwise it's disabled rather than a
+      // dead click.
+      const regBtn = document.getElementById('raceRegBtn');
+      if(regBtn){
+        if(ev.registration_url){
+          regBtn.disabled = false;
+          regBtn.onclick = () => window.open(ev.registration_url, '_blank', 'noopener');
+        } else {
+          regBtn.disabled = true;
+          regBtn.onclick = null;
+        }
+      }
 
       const noteSection = document.querySelector('#raceContent .section:nth-of-type(4)');
       if(noteSection){
@@ -2269,10 +2322,13 @@
     : _liveParam === 'true';
 
   const HIKES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=574412184&single=true&output=csv";
+  // Races tab, republished with the new event_name/race_date/town/...
+  // column set — see normalizeRaceRow() below for how those columns map
+  // to the internal fields the rest of the app reads.
   const RACES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeRlxk4IxoO52rhDukk5TzVDhGYaDzrgViM2U_r4sRzwtSf2Go77gntad-hAASfbINV9y8ntncLvV/pub?gid=1609559383&single=true&output=csv";
 
   // ---- PLACEHOLDER DATA ---------------------------------------
-  // Shaped exactly like real rows from the two-tab template, so
+  // Hikes are shaped exactly like real rows from the hikes tab, so
   // swapping USE_LIVE_DATA to true requires no other code changes.
 
   const PLACEHOLDER_HIKES_CSV =
@@ -2282,12 +2338,17 @@ hike,Sirao Garden Loop + Coffee,2026-07-12,Sirao Garden Loop,Busay,Cebu Weekend 
 hike,Osmeña Peak Sunrise Hike,2026-07-04,Osmeña Peak,"Mantalongon, Dalaguete",JM Outdoors,cebu,urgent,"30,18,20,4,12,6,16,10,18",,5.0,400,Moderate,Mantalongon Public Market,4:00 AM,2026-07-02 18:00,350,via Facebook page
 hike,Mt. Pulag Traverse,2026-08-01,Mt. Pulag,"Benguet (3D2N)",Northbound Expeditions,outside,far,"40,24,28,10,16,8,20,14,22","Out-of-Cebu trip, longer lead time applies.",15,1200,Hard,Cebu City Meetup Point,TBA,2026-07-20 18:00,4500,via Facebook page`;
 
+  // Races now come from a differently-shaped source sheet (the
+  // trail-events.csv export: event_name/race_date/town/province/... —
+  // see normalizeRaceRow() below, which is what actually turns rows in
+  // this shape into the internal fields the rest of the app reads).
   const PLACEHOLDER_RACES_CSV =
-`type,title,date,area,location_detail,organizer,cebu_flag,lead_time_tag,elev_profile,notes,reg_status,early_bird_date,venue,distances
-race,Sugbu SkyRace 2026,2026-11-07,Mantalongon,"Mantalongon, Dalaguete",Sugbu SkyRunners,cebu,far,"36,20,24,8,18,6,16,14,20","Just announced, plan ahead.",Open,2026-09-01,"Mantalongon, Dalaguete","21K · 42K · 80K"
-race,Babag Ridge Run,2026-09-05,Babag Ridge,Cebu City,Tabacolan Trail Runners,cebu,far,"30,16,20,8,14,6,16,12",,Open,2026-08-15,"Babag Ridge, Cebu City","10K · 21K"
-race,Kan-irag Vertical Kilometer,2026-09-05,Kan-irag,Argao,Visayas Trail Series,cebu,far,"32,24,26,10,14,2,8,4,8",,Open,2026-08-30,"Kan-irag, Argao","5K VK"
-race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wide series,outside,far,"30,10,18,4,16,8,20,12,18",,Reg opens Sep 1,,"Negros Oriental","50K · 100K"`;
+`event_name,type,event_year,start_date,end_date,race_date,town,province,region,event_description,event_facebook_url,event_image_url,distances,distance_km,elevation_gain_m,difficulty,organizer,registration_url,price_php,source_url,status,last_verified,category_data_json
+"Ormoc Trail Fest 2026","","2026","2026/07/19","2026/07/19","2026/07/19","Ormoc","","","Ormoc Trail Fest is a trail running event set on the backyards of Ormoc hills, built by new and seasoned trail runners for runners.","https://www.facebook.com/profile.php?id=61586897490920","https://itra.run/Files/Events/f7056b7330f443ba9df4134079188315.jpg","OTF15, OTF25, OTF Marathon","42.39","1928","","","https://docs.google.com/forms/d/e/1FAIpQLSenOb4kwYNaju9ErTEw5tiGm9PTj9ACOdvShzYFmBEN4YlGAA/viewform","0","https://itra.run/Races/RaceDetails/Ormoc.Trail.Fest.OTF.Marathon/2026/119977","","","[object Object],[object Object],[object Object]"
+"TRAILPH - Happy Quad Trail Run 2026","","2026","2026/07/19","2026/07/19","2026/07/19","ANTIPOLO","Rizal","","A community-built trail race returning to the mountains of Antipolo, Rizal, open to runners of varying distances and a canine race category.","https://www.facebook.com/events/1230275368916243/","https://itra.run/Files/Events/89d48dce72344762b6ddd52546ba7e26.png","21K","19.6","1314","","Bar-R-camp Community","https://trailph.com/events/happy-quad-2026","0","https://itra.run/Races/RaceDetails/TRAILPH...Happy.Quad.Trail.Run.21K/2026/120659","","",""
+"THE MUSPO 100 2026","","2026","2026/06/18","2026/07/12","2026/07/11","Valencia City","","","MUSPO BUKIDNON","https://www.facebook.com/profile.php?id=100089802657239","https://itra.run/Files/Events/2f841b9837494c0e9f944ab36107b94a.png","MUSPO 35KM, MUSPO 55KM, MUSPO 100KM","99.49","3071","","","https://www.facebook.com/profile.php?id=100089802657239","0","https://itra.run/Races/RaceDetails/THE.MUSPO.100.MUSPO.100KM/2026/120610","","","[object Object],[object Object],[object Object]"
+"Nueva Ecija Marathon 2026","","2026","2026/07/12","2026/07/12","2026/07/12","Guimba","","","","https://www.facebook.com/nuevaecijamarathon","","6KM Race route, 10KM Race route, 21KM Race, 42KM Race","42","10","","","https://basekm.com/races/2026/nueva-ecija-marathon-2026/register","0","https://itra.run/Races/RaceDetails/Nueva.Ecija.Marathon.42KM.Race/2026/114757","","","[object Object],[object Object],[object Object],[object Object]"
+"Camiguin Island Trail Race 2026","","2026","2026/07/18","2026/07/19","2026/07/18","Mambajao","","","A scenic island event in Camiguin, in the Northern Mindanao region of the Philippines, known as the Island Born of Fire and famous for its lanzones fruit. This is the 4th installment of the race.","https://www.facebook.com/verticaltoskysports/","https://itra.run/Files/Events/fee7e6824ff04ebfaa019021442c2219.jpg","10km funtrail, 25km lovely trail, 70km ultratrail","70.22","3080","","","https://www.verticaltosky.com/camiguinisland","0","https://itra.run/Races/RaceDetails/Camiguin.Island.Trail.Race.70km.ultratrail/2026/120958","","","[object Object],[object Object],[object Object]"`;
 
   // ---- CSV PARSER ----------------------------------------------
   // Handles quoted fields (commas/line breaks inside quotes), which
@@ -2330,6 +2391,51 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
       });
   }
 
+  // ---- RACE ROW NORMALIZER ----------------------------------------
+  // The races source sheet uses a different column set than the rest
+  // of this app expects (event_name/race_date/town/province/... instead
+  // of title/date/area/...). This is the ONE place that translation
+  // happens — every card, the detail view, chips, and validation all
+  // read the normalized field names below and never touch the raw
+  // event_name/race_date/etc. columns directly.
+  function normalizeRaceRow(r) {
+    const area = [r.town, r.province].filter(Boolean).join(', ') || r.region || '';
+    // Source dates come as "2026/07/19"; the rest of the app expects
+    // "2026-07-19" (validated and parsed with `new Date(date+'T00:00:00')`).
+    const toISODate = s => (s || '').trim().replace(/\//g, '-');
+
+    return {
+      type: 'race',
+      title: r.event_name || '',
+      date: toISODate(r.race_date || r.start_date),
+      start_date: toISODate(r.start_date),
+      end_date: toISODate(r.end_date),
+      area,
+      location_detail: area,
+      venue: area,
+      region: r.region || '',
+      organizer: r.organizer || '',
+      notes: r.event_description || '',
+      // Source separates multiple distances with commas ("21K, 42K");
+      // the detail view's distance list and max-distance calc split on
+      // " · " instead, so re-join with that separator here.
+      distances: (r.distances || '').split(',').map(s => s.trim()).filter(Boolean).join(' · '),
+      distance_km: r.distance_km || '',
+      elev_gain_m: r.elevation_gain_m || '',
+      difficulty: r.difficulty || '',
+      // No explicit status column is reliably filled in yet — if the
+      // sheet doesn't say, but a registration link exists, treat that
+      // as "Open" rather than showing a blank status.
+      reg_status: r.status || (r.registration_url ? 'Open' : ''),
+      early_bird_date: '', // not provided by this source
+      price_php: r.price_php,
+      image_url: r.event_image_url || '',
+      facebook_url: r.event_facebook_url || '',
+      registration_url: r.registration_url || '',
+      source_url: r.source_url || ''
+    };
+  }
+
   // ---- FETCH + MERGE --------------------------------------------
   async function fetchCSV(url) {
     const res = await fetch(url);
@@ -2351,13 +2457,13 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     }
 
     const hikeRows = parseCSV(hikesText);
-    const raceRows = parseCSV(racesText);
+    const raceRows = parseCSV(racesText).map(normalizeRaceRow);
 
     // Merge into one array. `type` column is trusted, but if it's
     // ever blank/wrong, fall back to which tab the row came from.
     const events = [
       ...hikeRows.map(r => ({ ...r, type: r.type || "hike" })),
-      ...raceRows.map(r => ({ ...r, type: r.type || "race" }))
+      ...raceRows
     ];
 
     return events;
@@ -2535,13 +2641,14 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     const sub = [ev.area, ev.organizer].filter(Boolean).join(' · ');
 
     const tags = [];
-    if (ev.cebu_flag === 'outside') tags.push(`<span class="tag outside">Outside Cebu</span>`);
     if (!isNaN(d)) {
       const days = daysBetween(today, d);
       if (days >= 0) tags.push(`<span class="tag far">${days} day${days === 1 ? '' : 's'} to go</span>`);
     }
     if (ev.distances) tags.push(`<span class="tag">${escapeHtml(ev.distances)}</span>`);
     if (ev.reg_status) tags.push(`<span class="tag">${ev.reg_status === 'Open' ? 'Reg open' : escapeHtml(ev.reg_status)}</span>`);
+    const priceLabel = formatPrice(ev.price_php);
+    if (priceLabel) tags.push(`<span class="tag">${escapeHtml(priceLabel)}</span>`);
     if (ev.early_bird_date) {
       const eb = new Date(ev.early_bird_date + 'T00:00:00');
       if (!isNaN(eb)) {
@@ -2549,6 +2656,12 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
         if (ebDays >= 0 && ebDays <= 14) tags.push(`<span class="tag urgent">Early bird ends in ${ebDays}d</span>`);
       }
     }
+
+    // Real event photo replaces the decorative sparkline when the sheet
+    // provides one; falls back to the sparkline otherwise.
+    const thumb = ev.image_url
+      ? `<img class="card-thumb" src="${escapeHtml(ev.image_url)}" alt="" loading="lazy">`
+      : SPARK_RACE;
 
     return `
       <div class="card" data-date="${escapeHtml(ev.date)}" onclick="openDetail('race', ${ev._id})">
@@ -2558,7 +2671,7 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
             <p class="card-date">${cardDate}</p>
             <p class="card-sub">${escapeHtml(sub)}</p>
           </div>
-          ${SPARK_RACE}
+          ${thumb}
         </div>
         <div class="tagrow">${tags.join('')}</div>
       </div>`;
@@ -2674,9 +2787,7 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
         const today = startOfToday();
         const d = toEventDate(ev);
         return d > addDays(today, 90) && d <= addDays(today, 180);
-      },
-      'cebu': ev => ev.cebu_flag === 'cebu',
-      'visayas-ph': ev => ev.cebu_flag === 'outside'
+      }
     }
   };
 
@@ -2720,10 +2831,8 @@ race,Visayas Mountain Ultra,2026-01-17,Negros Oriental,Negros Oriental,Region-wi
     const facets = [];
     const upcoming = countMatches(raceEventsCache, CHIP_PREDICATES.races['all-upcoming']);
     const soon = countMatches(raceEventsCache, CHIP_PREDICATES.races['next-3-months']);
-    const cebu = countMatches(raceEventsCache, CHIP_PREDICATES.races['cebu']);
     if (upcoming > 0) facets.push(`${upcoming} open for registration`);
     if (soon > 0) facets.push(`${soon} in the next 3 months`);
-    if (cebu > 0) facets.push(`${cebu} in Cebu`);
     return facets.length ? facets : [`${raceEventsCache.length} upcoming`];
   }
 
